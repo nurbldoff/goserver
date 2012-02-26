@@ -26,15 +26,23 @@ $(document).ready(function () {
     var port = window.location.port
     var ws = new WebSocket("ws://"+hostname+":"+port+"/socket?gameid="+game_id);
     ws.onmessage = function(event) {
-        // Data on the websocket means a move was made - let's update
-        // the board!
         data = event.data;
-        update_display(game_id, board_size, board_width, paper, event.data);
+        var message = eval('(' + data + ')');
+        if(message.type == "board") {
+            update_display(game_id, board_size, board_width, paper, event.data);
+        }
+        if(message.type == "chat") {
+            $("#messages").append($("<div>").text(message.user+":"+message.message));
+        }
         //update_display(event.data);
     }
     ws.onopen = function() {
         ws.send("Hello, world");
     };
+
+    $("#chatButton").click(function () {
+        $.post("/game/"+game_id, {message: $("#chatMessage").attr("value")});
+    });
 });
 
 function update_display(game_id, size, width, paper, data) {

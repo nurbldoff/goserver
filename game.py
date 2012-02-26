@@ -89,6 +89,7 @@ class Game(object):
 
     def get_game_state(self):
         state = {}
+        state["type"] = "board"
         state["black"] = self.players[0].name
         state["white"] = self.players[1].name if self.players[1] else None
         state["active_player"] = ("b", "w")[

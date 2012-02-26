@@ -87,6 +87,7 @@ class GameHandler(BaseHandler):
                 pass
         elif get == "board":
             s = game.get_game_state()
+            s["type"] = "board"
             if (game.players[0] != users[self.current_user]["player"] and
                 not all(game.players)):
                 s["message"] = "Joined the game as White!"
@@ -108,6 +109,16 @@ class GameHandler(BaseHandler):
         else:
             self.render("templates/game.html", title="Gospel")
 
+    def post(self, game_id):
+        game = games.get(int(game_id), None)
+        message = self.get_argument('message', default=None)
+        print "posted:", message
+        chat_message = {
+            "type": "chat",
+            "user": self.current_user,
+            "message": message}
+        for socket in game.sockets:
+            socket.write_message(json_encode(chat_message))
 
 class LoginHandler(BaseHandler):
 
