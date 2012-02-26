@@ -1,0 +1,9 @@
+A small server for playing Go over the web!
+
+Requires the python module Tornado 2.2. 
+
+Relies on websockets to update the board when a move is made, so it probably
+won't work in all browsers. Recent Firefox and Chrome versions work.
+
+Run "python server.py" and point your web browser to http://localhost:8888 
+to try it.

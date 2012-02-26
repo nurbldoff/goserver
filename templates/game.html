@@ -1,0 +1,41 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <TITLE>Game: ### Player: {{current_user}}</TITLE>
+
+  <link rel="stylesheet" type="text/css" href="{{ static_url("main.css") }}" />
+
+  <script type="text/javascript" src="{{ static_url("jquery.js") }}"></script>
+  <script type="text/javascript" src="{{ static_url("raphael-min.js") }}"></script>
+  <script type="text/javascript" src="{{ static_url("gogame.js") }}"></script>
+
+</head>
+<body>
+<input type='hidden' id="user" value={{current_user}}>
+<table id="mainTable">
+  <tr id="headerRow">
+    <td id="gameStatus">
+      <table id="playerStatus">
+        <tr>
+          <td id="blackStatus"><div id="blackStatusWrap"></div></td>
+          <td id="whiteStatus"><div id="whiteStatusWrap"></div></td>
+        </tr>
+      </table>
+    </td>
+    <td id="messageHeader"></td>
+  </tr>
+  <tr>
+    <td id="gobanTd">
+      <div id="gobanWrap"></div>
+    </td>
+
+    <td class="messages">
+      <div id="messages" class="messages">
+      </div>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

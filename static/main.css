@@ -1,0 +1,86 @@
+body {
+     }
+
+#mainTable {
+    width=100%;
+}
+
+#playerStatus {
+    border: 0;
+    width: 100%;
+}
+
+#blackStatus {
+    background-color: black;
+    color: white;
+    width: 50%;
+    text-align: center;
+}
+
+#whiteStatus {
+    background-color: white;
+    color: black;
+    width: 50%;
+    text-align: center;
+}
+
+div.inactivePlayer {
+    border-style: solid;
+    border-color: transparent;
+}
+
+div.activePlayer {
+    border-style: solid;
+    border-color: red;
+}
+
+#gameStatus {
+    border-width: 0;
+    background-color: grey;
+    align: center;
+}
+
+#messageHeader {
+    background-color: #c0c0c0;
+}
+
+td.messages {
+    vertical-align: top;
+    width: 100%;
+}
+
+div.messages {
+    background-color: white;
+}
+
+#Ggoban {
+    background: orange;
+    font-family: monospace;
+    font-size: x-large;
+    user-select: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -o-user-select: none;
+}
+
+.gobanPosition {
+    text-align: center;
+}
+
+.whiteStone {
+    font-weight: 200;
+    color: white;
+}
+
+.blackStone {
+    font-weight: 200;
+    color: black;
+}
+
+.emptyPosition {
+    padding-left: 0.3em;
+    padding-right: 0.3em;
+
+    color: #b06000;
+}

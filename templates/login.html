@@ -1,0 +1,19 @@
+<html>
+<head>
+
+<link rel="stylesheet" type="text/css" href="{{ static_url("main.css") }}" />
+
+</head>
+<body>
+
+<div id="loginWrap">
+<p>{{error}}
+<form name="login" action="" method="post">
+Username: <input type="text" name="username" /><br />
+Password: <input type="password" name="password" />
+<input type="submit" value="Submit" />
+</form>
+</div>
+
+</body>
+</html>
