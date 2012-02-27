@@ -1,4 +1,5 @@
 import os
+import time
 
 import tornado.ioloop
 import tornado.web
@@ -29,7 +30,7 @@ class MainHandler(BaseHandler):
         new = self.get_argument('new', default=None)
         if new == "game":  # starting a new game!
             new_game_id = len(games)
-            player = users[self.current_user]["player"]
+            player = users[self.current_user]
             games[new_game_id] = Game(black_player=player, white_player=None)
             self.redirect("/game/%d" % new_game_id)
         else:
@@ -72,53 +73,43 @@ class GameHandler(BaseHandler):
             return
         move = self.get_argument('move', default=None)
         get = self.get_argument('get', default=None)
-        if move:
-            player = users[self.current_user]["player"]
-            print "Player %s made a move!" % player.name
+        fr = int(self.get_argument('from', default=0))
+
+        if move:  # making a move
+            player = users[self.current_user]
+            print "Player %s made a move!" % player["name"]
             position = [int(x) for x in move.split(",")]
             try:
                 game.move(position, player)
-                s = game.get_game_state()
-                #s["message"] = "%s: %d, %d" % (self.current_user, position[0],
-                #                              position[1])
-                for socket in game.sockets:
-                    socket.write_message(json_encode(s))
             except IllegalMove:
                 pass
-        elif get == "board":
+
+        elif get == "board":  # requesting the board state
+            print "Player '%s' requested board state" % self.current_user
             s = game.get_game_state()
-            s["type"] = "board"
-            if (game.players[0] != users[self.current_user]["player"] and
-                not all(game.players)):
-                s["message"] = "Joined the game as White!"
-            elif (game.players[0] == users[self.current_user]["player"] and
-                  not all(game.players)):
-                s["message"] = "Waiting for an opponent..."
-            else:
-                s["message"] = ""
             self.write(json_encode(s))
-        elif (game.players[0] != users[self.current_user]["player"] and
+
+        elif get == "chat":  # requesting chat messages
+            print "Player '%s' requested chat from %d" % (self.current_user,
+                                                          fr)
+            reply = game.messages[fr:]
+            self.write(json_encode(reply))
+            print json_encode(reply)
+
+        elif (game.players[0] != users[self.current_user] and
               not all(game.players)):   # this game has no opponent - join it
-            game.players[1] = users[self.current_user]["player"]
-            print "players", [g.name for g in game.players if g]
+            print "Player '%s' joined game %s" % (self.current_user, game_id)
             self.render("templates/game.html", title="Gospel")
-            s = game.get_game_state()
-            s["message"] = "User '%s' has joined the game!" % self.current_user
-            for socket in game.sockets:
-                socket.write_message(json_encode(s))
+            game.add_player(users[self.current_user], 0)
+
         else:
             self.render("templates/game.html", title="Gospel")
 
     def post(self, game_id):
         game = games.get(int(game_id), None)
         message = self.get_argument('message', default=None)
+        game.add_message(time.time(), self.current_user, message)
         print "posted:", message
-        chat_message = {
-            "type": "chat",
-            "user": self.current_user,
-            "message": message}
-        for socket in game.sockets:
-            socket.write_message(json_encode(chat_message))
 
 class LoginHandler(BaseHandler):
 
@@ -133,9 +124,7 @@ class LoginHandler(BaseHandler):
         if username not in users:
             self.set_current_user(username)
             users[username] = {"password": password,
-                               "player": Player(name=username,
-                                                user=self.current_user)}
-
+                               "name": self.current_user}
             self.redirect(self.get_argument("next", u"/"))
         elif username in users and users[username]["password"] == password:
             self.set_current_user(username)
@@ -153,14 +142,7 @@ class LoginHandler(BaseHandler):
             self.clear_cookie("user")
 
 
-users = {"black": {"password": "black",
-                   "player": Player(name="black", user="black")},
-         "white": {"password": "white",
-                   "player": Player(name="white", user="white")}}
-
-#games = dict([(i, Game(black_player=users["black"]["player"],
-#                       white_player=users["white"]["player"])
-#                       ) for i in (0, 1, 2)])
+users = {"test": {"password": "testpass", "name": "test"}}
 
 games = {}
 

@@ -9,6 +9,7 @@ $(document).ready(function () {
     var paper = Raphael("gobanWrap", board_width, board_width);
     var stones = paper.set();
     var data;
+    var this_player = $("#user").attr("value");
 
     // peek at the board and display it
     $.get("/game/"+game_id+"?get=board", "", function(result) {
@@ -26,29 +27,52 @@ $(document).ready(function () {
     var port = window.location.port
     var ws = new WebSocket("ws://"+hostname+":"+port+"/socket?gameid="+game_id);
     ws.onmessage = function(event) {
-        data = event.data;
-        var message = eval('(' + data + ')');
-        if(message.type == "board") {
-            update_display(game_id, board_size, board_width, paper, event.data);
+        type = event.data;
+        switch(type) {
+        case "move":
+            $.get("/game/"+game_id+"?get=board", "", function(result) {
+                data = result
+                update_display(game_id, board_size, board_width, paper, result);
+            });
+            break;
+        case "chat":
+            var fr = $("#messages").children().length;
+            //var fr = 0;
+            $.get("/game/"+game_id+"?get=chat&from="+fr, "", function(result) {
+                var chat_data = eval('(' + result + ')');
+                $.each(chat_data, function(i, message) {
+                    var $msg = $("<div>").text(message.user+":"+message.content);
+                    $("#messages").append($msg);
+                });
+            });
+            break;
+       case "join":
+            $.get("/game/"+game_id+"?get=board", "", function(result) {
+                data = result
+                update_display(game_id, board_size, board_width, paper, result);
+            });
+            break;
         }
-        if(message.type == "chat") {
-            $("#messages").append($("<div>").text(message.user+":"+message.message));
-        }
-        //update_display(event.data);
     }
-    ws.onopen = function() {
-        ws.send("Hello, world");
-    };
 
-    $("#chatButton").click(function () {
-        $.post("/game/"+game_id, {message: $("#chatMessage").attr("value")});
+    ws.onopen = function() {};  // might be nice to send a greeting or something
+
+    // activate the chat button
+    send_chat_message = function () {
+        $.post("/game/"+game_id, {message: $("#chatInput").attr("value")});
+    }
+    $("#chatButton").click(send_chat_message);
+    $('#chatInput').keypress(function(e){
+        if(e.which == 13){
+            send_chat_message();
+        }
     });
+
 });
 
 function update_display(game_id, size, width, paper, data) {
     var game_state = eval('(' + data + ')');
     //if($("#user").text() == "
-    var this_player = $("#user").attr("value");
     $("#blackStatusWrap").text(game_state.black + (game_state.black == this_player ? " (You)" : ""));
     $("#whiteStatusWrap").text(game_state.white + (game_state.white == this_player ? " (You)" : ""));
     if(game_state.active_player == "w") {
@@ -60,7 +84,7 @@ function update_display(game_id, size, width, paper, data) {
     }
     draw_board(game_id, size, width, paper);
     draw_stones(game_state.board, game_state.last_move, size, width, paper);
-    $("#messages").append($("<div>").text(game_state.message));
+    //$("#messages").append($("<div>").text(game_state.message));
 }
 
 
@@ -91,13 +115,21 @@ function draw_board(game_id, size, width, paper) {
     var grid = paper.path(buffer.join(""));
     grid.attr("stroke", "#403020");
 
+    // tengen, hoshi
+    var marker;
+    for (var i = 0; i < 3; i++) {
+        for (var j = 0; j < 3; j++) {
+            marker = paper.circle((3.5+i*6)*delta, (3.5+j*6)*delta, delta/12);
+            marker.attr("stroke-width", 0);
+            marker.attr("fill", "black");
+        }
+    }
     // click targets
     var click_handler = function () {
         $.get("/game/"+game_id+"?move=" +
               this.data("col")+","+this.data("row"));
         //alert(this.data("col") + "," + this.data("row"));
     }
-    var marker;
     for (var i = 0; i < size; i++) {
         for (var j = 0; j < size; j++) {
             marker = paper.rect(j*delta, i*delta, delta, delta);

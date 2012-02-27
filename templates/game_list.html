@@ -6,17 +6,17 @@
 </head>
 <body>
 
-<div id="gameListWrap">  
+<div id="gameListWrap">
 <ul>
   {% for i, game in games.items() %}
-  <li> 
+  <li>
     <a href="{{ "/game/%d" % i }}">
 {% if not game.players[1] %}
-    {{ "%d: %s is waiting for an opponent." % (i, game.players[0].name) }}
+    {{ "%d: %s is waiting for an opponent." % (i, game.players[0]["name"]) }}
 {% else %}
-    {{ "%d: %s vs %s (%d moves)" % (i, game.players[0].name, 
-                game.players[1].name, len(game.moves)) }}
-{% end %} 
+    {{ "%d: %s vs %s (%d moves)" % (i, game.players[0]["name"],
+                game.players[1]["name"], len(game.moves)) }}
+{% end %}
     </a>
   </li>
   {% end %}
