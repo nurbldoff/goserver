@@ -1,5 +1,5 @@
 import time
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 
 from tornado.escape import json_encode
 
