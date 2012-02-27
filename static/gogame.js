@@ -12,17 +12,10 @@ $(document).ready(function () {
     var this_player = $("#user").attr("value");
 
     // peek at the board and display it
-    $.get("/game/"+game_id+"?get=board", "", function(result) {
-        data = result
-        update_display(game_id, this_player, board_size, board_width, paper, result);
-    });
+    data = update_board(game_id, this_player, board_size, board_width, paper);
+    update_chat(game_id);  // get the chat history
 
-    $(window).bind('resize',function(){
-        var board_width = window.innerWidth/2;
-        update_display(game_id, this_player, board_size, board_width, paper, data);
-    });
-
-    // setup a websocket to listen for moves
+    // setup a websocket to listen for moves, chat messages and joins
     var hostname = window.location.hostname
     var port = window.location.port
     var ws = new WebSocket("ws://"+hostname+":"+port+"/socket?gameid="+game_id);
@@ -30,32 +23,23 @@ $(document).ready(function () {
         type = event.data;
         switch(type) {
         case "move":
-            $.get("/game/"+game_id+"?get=board", "", function(result) {
-                data = result
-                update_display(game_id, this_player, board_size, board_width, paper, result);
-            });
+            data = update_board(game_id, this_player, board_size, board_width, paper);
             break;
         case "chat":
-            var fr = $("#messages").children().length;
-            //var fr = 0;
-            $.get("/game/"+game_id+"?get=chat&from="+fr, "", function(result) {
-                var chat_data = eval('(' + result + ')');
-                $.each(chat_data, function(i, message) {
-                    var $msg = $("<div>").text(message.user+":"+message.content);
-                    $("#messages").append($msg);
-                });
-            });
+            update_chat(game_id);
             break;
-       case "join":
-            $.get("/game/"+game_id+"?get=board", "", function(result) {
-                data = result
-                update_display(game_id, this_player, board_size, board_width, paper, result);
-            });
+        case "join":
+            data = update_board(game_id, this_player, board_size, board_width, paper);
             break;
         }
     }
-
     ws.onopen = function() {};  // might be nice to send a greeting or something
+
+    // setup redraw on window resize - doesn't handle zoom though :(
+    $(window).bind('resize',function(){
+        var board_width = window.innerWidth/2;
+        update_board(game_id, this_player, board_size, board_width, paper, data);
+    });
 
     // activate the chat button
     send_chat_message = function () {
@@ -71,7 +55,31 @@ $(document).ready(function () {
 
 });
 
-function update_display(game_id, player, size, width, paper, data) {
+function update_board(game_id,  this_player, board_size, board_width, paper, state) {
+    if (!state) {
+        $.get("/game/"+game_id+"?get=board", "", function(result) {
+            state = result
+            redraw_display(game_id, this_player, board_size, board_width, paper, result);
+        });
+    } else {
+        redraw_display(game_id, this_player, board_size, board_width, paper, state);
+    }
+    return state;
+}
+
+
+function update_chat(game_id) {
+    var fr = $("#messages").children().length;
+    $.get("/game/"+game_id+"?get=chat&from="+fr, "", function(result) {
+        var chat_data = eval('(' + result + ')');
+        $.each(chat_data, function(i, message) {
+            var $msg = $("<div>").text(message.user+":"+message.content);
+            $("#messages").append($msg);
+        });
+    });
+}
+
+function redraw_display(game_id, player, size, width, paper, data) {
     var game_state = eval('(' + data + ')');
     //if($("#user").text() == "
     $("#blackStatusWrap").text(game_state.black + (game_state.black == player ? " (You)" : ""));

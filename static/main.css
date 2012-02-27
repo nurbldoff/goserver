@@ -40,8 +40,9 @@ div.activePlayer {
     align: center;
 }
 
-#messageHeader {
+#sideHeader {
     background-color: #c0c0c0;
+    text-align: right;
 }
 
 td.messages {

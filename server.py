@@ -6,7 +6,7 @@ import tornado.web
 from tornado import websocket
 from tornado.escape import json_encode
 
-from game import Game, Player, IllegalMove
+from game import Game, IllegalMove
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -31,8 +31,12 @@ class MainHandler(BaseHandler):
         if new == "game":  # starting a new game!
             new_game_id = len(games)
             player = users[self.current_user]
-            games[new_game_id] = Game(black_player=player, white_player=None)
+            game = Game(black_player=player, white_player=None)
+            games[new_game_id] = game
             self.redirect("/game/%d" % new_game_id)
+            game.add_message(time.time(), "<server>",
+                "%s started this game, waiting for an opponent." %
+                             self.current_user)
         else:
             self.render("templates/game_list.html", title="Ongoing games",
                         games=games)
@@ -89,11 +93,14 @@ class GameHandler(BaseHandler):
         elif (game.players[0] != users[self.current_user] and
               not all(game.players)):   # this game has no opponent - join it
             print "Player '%s' joined game %s" % (self.current_user, game_id)
-            self.render("templates/game.html", title="Gospel")
+            game.add_message(time.time(), "<server>",
+                "%s has joined the game! Black may begin." % self.current_user)
             game.add_player(users[self.current_user], 0)
+            self.render("templates/game.html")
+
 
         else:
-            self.render("templates/game.html", title="Gospel")
+            self.render("templates/game.html")
 
     def post(self, game_id):
         game = games.get(int(game_id), None)
@@ -124,9 +131,10 @@ class LoginHandler(BaseHandler):
         username = self.get_argument("username", "")
         password = self.get_argument("password", "")
         if username not in users:
+            print "New user %s!" % username
             self.set_current_user(username)
             users[username] = {"password": password,
-                               "name": self.current_user}
+                               "name": username}
             self.redirect(self.get_argument("next", u"/"))
         elif username in users and users[username]["password"] == password:
             self.set_current_user(username)
@@ -144,6 +152,14 @@ class LoginHandler(BaseHandler):
             self.clear_cookie("user")
 
 
+class LogoutHandler(BaseHandler):
+
+    def get(self):
+        self.clear_cookie("user")
+        #self.set_current_user(None)
+        self.redirect("/")
+
+
 users = {"test": {"password": "testpass", "name": "test"}}
 
 games = {}
@@ -158,6 +174,7 @@ settings = {
 application = tornado.web.Application([
             (r"/", MainHandler),
             (r"/login", LoginHandler),
+            (r"/logout", LogoutHandler),
             (r"/socket", ClientSocket),
             (r"/game/([0-9]+)", GameHandler)
             ], **settings)
