@@ -60,6 +60,7 @@ $(document).ready(function () {
     // activate the chat button
     send_chat_message = function () {
         $.post("/game/"+game_id, {message: $("#chatInput").attr("value")});
+        $("#chatInput").attr("value", "");
     }
     $("#chatButton").click(send_chat_message);
     $('#chatInput').keypress(function(e){

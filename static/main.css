@@ -84,3 +84,12 @@ div.messages {
 
     color: #b06000;
 }
+
+
+input#chatInput {
+    width: 85%;
+}
+
+#chatButton {
+    width: 10%;
+}
