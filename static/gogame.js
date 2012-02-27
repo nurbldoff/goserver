@@ -14,12 +14,12 @@ $(document).ready(function () {
     // peek at the board and display it
     $.get("/game/"+game_id+"?get=board", "", function(result) {
         data = result
-        update_display(game_id, board_size, board_width, paper, result);
+        update_display(game_id, this_player, board_size, board_width, paper, result);
     });
 
     $(window).bind('resize',function(){
         var board_width = window.innerWidth/2;
-        update_display(game_id, board_size, board_width, paper, data);
+        update_display(game_id, this_player, board_size, board_width, paper, data);
     });
 
     // setup a websocket to listen for moves
@@ -32,7 +32,7 @@ $(document).ready(function () {
         case "move":
             $.get("/game/"+game_id+"?get=board", "", function(result) {
                 data = result
-                update_display(game_id, board_size, board_width, paper, result);
+                update_display(game_id, this_player, board_size, board_width, paper, result);
             });
             break;
         case "chat":
@@ -49,7 +49,7 @@ $(document).ready(function () {
        case "join":
             $.get("/game/"+game_id+"?get=board", "", function(result) {
                 data = result
-                update_display(game_id, board_size, board_width, paper, result);
+                update_display(game_id, this_player, board_size, board_width, paper, result);
             });
             break;
         }
@@ -70,11 +70,11 @@ $(document).ready(function () {
 
 });
 
-function update_display(game_id, size, width, paper, data) {
+function update_display(game_id, player, size, width, paper, data) {
     var game_state = eval('(' + data + ')');
     //if($("#user").text() == "
-    $("#blackStatusWrap").text(game_state.black + (game_state.black == this_player ? " (You)" : ""));
-    $("#whiteStatusWrap").text(game_state.white + (game_state.white == this_player ? " (You)" : ""));
+    $("#blackStatusWrap").text(game_state.black + (game_state.black == player ? " (You)" : ""));
+    $("#whiteStatusWrap").text(game_state.white + (game_state.white == player ? " (You)" : ""));
     if(game_state.active_player == "w") {
         $("#whiteStatusWrap").attr("class", "activePlayer");
         $("#blackStatusWrap").attr("class", "inactivePlayer");
@@ -126,8 +126,8 @@ function draw_board(game_id, size, width, paper) {
     }
     // click targets
     var click_handler = function () {
-        $.get("/game/"+game_id+"?move=" +
-              this.data("col")+","+this.data("row"));
+        //$.get("/game/"+game_id+"?move=" +
+        $.post("/game/"+game_id, {move: this.data("col")+","+this.data("row")});
         //alert(this.data("col") + "," + this.data("row"));
     }
     for (var i = 0; i < size; i++) {

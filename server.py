@@ -71,20 +71,10 @@ class GameHandler(BaseHandler):
         if not game:  # game doesn't exist!
             self.redirect("/")
             return
-        move = self.get_argument('move', default=None)
         get = self.get_argument('get', default=None)
         fr = int(self.get_argument('from', default=0))
 
-        if move:  # making a move
-            player = users[self.current_user]
-            print "Player %s made a move!" % player["name"]
-            position = [int(x) for x in move.split(",")]
-            try:
-                game.move(position, player)
-            except IllegalMove:
-                pass
-
-        elif get == "board":  # requesting the board state
+        if get == "board":  # requesting the board state
             print "Player '%s' requested board state" % self.current_user
             s = game.get_game_state()
             self.write(json_encode(s))
@@ -107,9 +97,21 @@ class GameHandler(BaseHandler):
 
     def post(self, game_id):
         game = games.get(int(game_id), None)
+        move = self.get_argument('move', default=None)
         message = self.get_argument('message', default=None)
-        game.add_message(time.time(), self.current_user, message)
-        print "posted:", message
+
+        if move:  # making a move
+            player = users[self.current_user]
+            print "Player %s made a move!" % player["name"]
+            position = [int(x) for x in move.split(",")]
+            try:
+                game.move(position, player)
+            except IllegalMove:
+                pass
+
+        elif message:
+            game.add_message(time.time(), self.current_user, message)
+            print "posted:", message
 
 class LoginHandler(BaseHandler):
 
