@@ -78,6 +78,8 @@ class GameHandler(BaseHandler):
         get = self.get_argument('get', default=None)
         fr = int(self.get_argument('from', default=0))
         user = users.get(self.current_user, None)
+        if user is None:
+            self.redirect("/login")
 
         if get == "board":  # requesting the board state
             print "Player '%s' requested board state" % self.current_user
