@@ -54,28 +54,35 @@ class Game(object):
         self.sockets = []
 
     def announce_move(self):
+        """Announce over websockets that a move was made. It's then up to the
+        clients to request it, if they are interested."""
         for socket in self.sockets:
             socket.write_message("move")
 
     def announce_chat(self):
+        """Announce over websockets that a chatmessage was sent."""
         for socket in self.sockets:
             socket.write_message("chat")
 
     def announce_join(self):
+        """Announce over websockets that a player has joined the game."""
         for socket in self.sockets:
             socket.write_message("join")
 
     def add_player(self, user, handicap):
+        """Add a white player to an existing game."""
         self.players[1] = user
         self.handicap = handicap
         self.announce_join()
 
-    def switch_active_player(self):
+    def _switch_active_player(self):
+        """Change which player's turn it is"""
         self.active_player = self.players[
             not self.players.index(self.active_player)]
         print self.active_player["name"]
 
     def validate_move(self, player, position):
+        """Check if a move is legal"""
         # here should be some go logic to check if the move is OK
         if not all(p for p in self.players):
             raise NoOpponent
@@ -83,16 +90,18 @@ class Game(object):
             raise IllegalMove
 
     def make_move(self, time, position, player=None):
+        """Make a move."""
         self.validate_move(player, position)
         captures = self.board.place_stone(player, position)
         self.moves.append({"player": player,
                            "position": position,
                            "time": time})
         self.captures[self.players.index(self.active_player)] += len(captures)
-        self.switch_active_player()
+        self._switch_active_player()
         self.announce_move()
 
     def add_message(self, time, user, content):
+        """Send a chat message"""
         self.messages.append({"time": time, "user": user, "content": content})
         self.announce_chat()
 
