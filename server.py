@@ -77,6 +77,7 @@ class GameHandler(BaseHandler):
             return
         get = self.get_argument('get', default=None)
         fr = int(self.get_argument('from', default=0))
+        user = users.get(self.current_user, None)
 
         if get == "board":  # requesting the board state
             print "Player '%s' requested board state" % self.current_user
@@ -90,8 +91,8 @@ class GameHandler(BaseHandler):
             self.write(json_encode(reply))
             print json_encode(reply)
 
-        elif (game.players[0] != users[self.current_user] and
-              not all(game.players)):   # this game has no opponent - join it
+        elif user and (game.players[0] != user and not all(game.players)):
+            # this game has no opponent - join it
             print "Player '%s' joined game %s" % (self.current_user, game_id)
             game.add_message(time.time(), "<server>",
                 "%s has joined the game! Black may begin." % self.current_user)

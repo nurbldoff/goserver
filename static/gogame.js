@@ -83,7 +83,7 @@ function redraw_display(game_id, player, size, width, paper, data) {
     var game_state = eval('(' + data + ')');
     //if($("#user").text() == "
     $("#blackStatusWrap").text(game_state.black + (game_state.black == player ? " (You)" : ""));
-    $("#whiteStatusWrap").text(game_state.white + (game_state.white == player ? " (You)" : ""));
+    $("#whiteStatusWrap").text((game_state.white ? game_state.white : "") + (game_state.white == player ? " (You)" : ""));
     if(game_state.active_player == "w") {
         $("#whiteStatusWrap").attr("class", "activePlayer");
         $("#blackStatusWrap").attr("class", "inactivePlayer");

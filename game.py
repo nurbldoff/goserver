@@ -82,16 +82,18 @@ class Game(object):
         if player != self.active_player:
             raise IllegalMove
 
-    def move(self, position, player=None):
+    def make_move(self, time, position, player=None):
         self.validate_move(player, position)
         captures = self.board.place_stone(player, position)
-        self.moves.append({"player": player, "position": position})
+        self.moves.append({"player": player,
+                           "position": position,
+                           "time": time})
         self.captures[self.players.index(self.active_player)] += len(captures)
         self.switch_active_player()
         self.announce_move()
 
     def add_message(self, time, user, content):
-        self.messages.append({"time" :time, "user": user, "content": content})
+        self.messages.append({"time": time, "user": user, "content": content})
         self.announce_chat()
 
     def get_board_string(self):
