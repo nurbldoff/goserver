@@ -34,13 +34,6 @@ class Board(object):
         return []
 
 
-class Player(object):
-    def __init__(self, name, user, grade=30):
-        self.name = name
-        self.grade = grade
-        self.user = user
-
-
 class Game(object):
     """
     This class represents a game of Go.
