@@ -81,6 +81,11 @@ class GameHandler(BaseHandler):
         if user is None:
             self.redirect("/login")
 
+        if get == "moves":
+            print "Player '%s' requested moves" % self.current_user
+            moves = game.get_moves(fr)
+            self.write(json_encode(moves))
+
         if get == "board":  # requesting the board state
             print "Player '%s' requested board state" % self.current_user
             s = game.get_game_state()
