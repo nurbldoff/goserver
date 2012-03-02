@@ -45,13 +45,18 @@ class Game(object):
         self.handicap = handicap
         self.moves = []
         self.time = time
-        self.active_player = self.players[0]
 
         self.captures = [0, 0]
         self.board = Board(board_size)
 
         self.messages = []  # list of status and chat messages
         self.sockets = []
+
+    def get_active_player_index(self):
+        return len(self.moves) % 2
+
+    def get_active_player(self):
+        return self.players[self.get_active_player_index()]
 
     def announce_move(self):
         """Announce over websockets that a move was made. It's then up to the
@@ -75,18 +80,13 @@ class Game(object):
         self.handicap = handicap
         self.announce_join()
 
-    def _switch_active_player(self):
-        """Change which player's turn it is"""
-        self.active_player = self.players[
-            not self.players.index(self.active_player)]
-        print self.active_player["name"]
-
     def validate_move(self, player, position):
         """Check if a move is legal"""
         # here should be some go logic to check if the move is OK
-        if not all(p for p in self.players):
+        if not all(self.players):
             raise NoOpponent
-        if player != self.active_player:
+        if player != self.get_active_player():
+            print player, self.get_active_player()
             raise IllegalMove
 
     def make_move(self, time, position, player=None):
@@ -96,8 +96,7 @@ class Game(object):
         self.moves.append({"player": player,
                            "position": position,
                            "time": time})
-        self.captures[self.players.index(self.active_player)] += len(captures)
-        self._switch_active_player()
+        self.captures[self.get_active_player_index()] += len(captures)
         self.announce_move()
 
     def add_message(self, time, user, content):
@@ -124,8 +123,7 @@ class Game(object):
         state["type"] = "board"
         state["black"] = self.players[0]["name"]
         state["white"] = self.players[1]["name"] if self.players[1] else None
-        state["active_player"] = ("b", "w")[
-            self.players.index(self.active_player)]
+        state["active_player"] = ("b", "w")[self.get_active_player_index()]
         if self.moves:
             state["last_move"] = tuple(self.moves[-1]["position"])
         else:

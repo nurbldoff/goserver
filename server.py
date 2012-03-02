@@ -6,7 +6,7 @@ import tornado.web
 from tornado import websocket
 from tornado.escape import json_encode
 
-from game import Game, IllegalMove
+from game import Game, IllegalMove, NoOpponent, PositionAlreadyTaken
 
 
 class BaseHandler(tornado.web.RequestHandler):
@@ -115,9 +115,14 @@ class GameHandler(BaseHandler):
             print "Player %s made a move!" % player["name"]
             position = [int(x) for x in move.split(",")]
             try:
-                game.move(position, player)
+                game.make_move(time.time(), position, player)
+            except NoOpponent:
+                print "Player %s has no opponent!" % player["name"]
+            except PositionAlreadyTaken:
+                print "Position taken!"
             except IllegalMove:
-                pass
+                print "Not player %s's turn!" % player["name"]
+
 
         elif message:
             game.add_message(time.time(), self.current_user, message)
