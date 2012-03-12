@@ -7,12 +7,15 @@ $(document).ready(function () {
     var board_width = window.innerWidth/2;
     var board_size = 19;
     var paper = Raphael("gobanWrap", board_width, board_width);
-    var stones = paper.set();
+    paper.stones = paper.set();
     var data;
     var this_player = $("#user").attr("value");
 
+    var game = get_game_state(game_id);
+
     // peek at the board and display it
-    data = update_board(game_id, this_player, board_size, board_width, paper);
+    data = init_board(game_id, this_player, board_size, board_width,
+                      paper);
     update_chat(game_id);  // get the chat history
 
     // setup a websocket to listen for moves, chat messages and joins
@@ -23,13 +26,15 @@ $(document).ready(function () {
         type = event.data;
         switch(type) {
         case "move":
-            data = update_board(game_id, this_player, board_size, board_width, paper);
+            data = update_board(game_id, this_player, board_size, board_width,
+                                paper);
             break;
         case "chat":
             update_chat(game_id);
             break;
         case "join":
-            data = update_board(game_id, this_player, board_size, board_width, paper);
+            data = update_board(game_id, this_player, board_size, board_width,
+                                paper);
             break;
         }
     }
@@ -38,7 +43,8 @@ $(document).ready(function () {
     // setup redraw on window resize - doesn't handle zoom though :(
     $(window).bind('resize',function(){
         var board_width = window.innerWidth/2;
-        update_board(game_id, this_player, board_size, board_width, paper, data);
+        update_board(game_id, this_player, board_size, board_width, paper,
+                     data);
     });
 
     // activate the chat button
@@ -55,14 +61,42 @@ $(document).ready(function () {
 
 });
 
-function update_board(game_id,  this_player, board_size, board_width, paper, state) {
+function get_game_state(game_id) {
+    var state;
+    $.get("/game/"+game_id+"?get=state", "", function(result) {
+        state = result
+    });
+    return eval('(' + state + ')');
+}
+
+
+function init_board(game_id,  this_player, board_size, board_width, paper,
+                    state) {
     if (!state) {
         $.get("/game/"+game_id+"?get=board", "", function(result) {
             state = result
-            redraw_display(game_id, this_player, board_size, board_width, paper, result);
+            redraw_display(game_id, this_player, board_size, board_width,
+                           paper, result, true);
         });
     } else {
-        redraw_display(game_id, this_player, board_size, board_width, paper, state);
+        redraw_display(game_id, this_player, board_size, board_width, paper,
+                       state, true);
+    }
+    return state;
+}
+
+
+function update_board(game_id,  this_player, board_size, board_width, paper,
+                      state) {
+    if (!state) {
+        $.get("/game/"+game_id+"?get=board", "", function(result) {
+            state = result
+            redraw_display(game_id, this_player, board_size, board_width,
+                           paper, result, false);
+        });
+    } else {
+        redraw_display(game_id, this_player, board_size, board_width, paper,
+                       state, false);
     }
     return state;
 }
@@ -79,7 +113,7 @@ function update_chat(game_id) {
     });
 }
 
-function redraw_display(game_id, player, size, width, paper, data) {
+function redraw_display(game_id, player, size, width, paper, data, draw_all) {
     var game_state = eval('(' + data + ')');
     //if($("#user").text() == "
     $("#blackStatusWrap").text(game_state.black + (game_state.black == player ? " (You)" : ""));
@@ -91,8 +125,11 @@ function redraw_display(game_id, player, size, width, paper, data) {
         $("#blackStatusWrap").attr("class", "activePlayer");
         $("#whiteStatusWrap").attr("class", "inactivePlayer");
     }
-    draw_board(game_id, size, width, paper);
-    draw_stones(game_state.board, game_state.last_move, size, width, paper);
+    if(draw_all) {
+        draw_board(game_id, size, width, paper);
+    }
+    draw_stones(game_state.board, game_state.last_move, size, width,
+                paper);
     //$("#messages").append($("<div>").text(game_state.message));
 }
 
@@ -109,26 +146,27 @@ function draw_board(game_id, size, width, paper) {
     var buffer = [];
     for(var i=0; i<size; i++) {
         buffer.push("M");
-        buffer.push(delta/2);
+        buffer.push(Math.round(delta/2)-0.5);
         buffer.push(",");
-        buffer.push(delta/2+delta*i);
+        buffer.push(Math.round(delta/2+delta*i)-0.5);
         buffer.push("h");
-        buffer.push(width-delta);
+        buffer.push(Math.round(width-delta)+1.5);
         buffer.push("M");
-        buffer.push(delta/2+delta*i);
+        buffer.push(Math.round(delta/2+delta*i)-0.5);
         buffer.push(",");
-        buffer.push(delta/2);
+        buffer.push(Math.round(delta/2)-0.5);
         buffer.push("v");
-        buffer.push(width-delta);
+        buffer.push(Math.round(width-delta)+1.5);
     }
     var grid = paper.path(buffer.join(""));
     grid.attr("stroke", "#403020");
 
-    // tengen, hoshi
+    // tengen, hoshi (TODO: align better with th grid)
     var marker;
     for (var i = 0; i < 3; i++) {
         for (var j = 0; j < 3; j++) {
-            marker = paper.circle((3.5+i*6)*delta, (3.5+j*6)*delta, delta/12);
+            marker = paper.circle((3.5+i*6)*delta-0.5, (3.5+j*6)*delta-0.5,
+                                  delta/12);
             marker.attr("stroke-width", 0);
             marker.attr("fill", "black");
         }
@@ -155,6 +193,8 @@ function draw_board(game_id, size, width, paper) {
 
 function draw_stones(board, last_move, size, width, paper) {
     // stones
+    paper.stones.remove();
+    paper.stones = paper.set();
     var delta = width/size;
     var radius = 0.95*(width/size)/2;
     var stone, shadow, what;
@@ -169,9 +209,11 @@ function draw_stones(board, last_move, size, width, paper) {
                                       delta/2+i*delta+delta/7, radius*0.95);
                 shadow.attr("fill", "black").attr("opacity", 0.5);
                 shadow.attr("stroke-opacity", 0.4).attr("stroke-width", delta/8);
+                paper.stones.push(shadow);
                 stone = paper.circle(delta/2+j*delta, delta/2+i*delta, radius);
                 stone.attr("stroke-opacity", 0.2)
                 stone.attr("fill", 'r(0.5, 0.2 )#666-#000');
+                paper.stones.push(stone);
                 break;
             case "w":  // white stone
                 shadow = paper.circle(delta/2+j*delta, delta/2+i*delta+delta/7,
@@ -180,9 +222,11 @@ function draw_stones(board, last_move, size, width, paper) {
                 shadow.attr("stroke-width", delta/8);
                 shadow.attr("stroke-opacity", 0.4);
                 shadow.attr("opacity", 0.5);
+                paper.stones.push(shadow);
                 stone = paper.circle(delta/2+j*delta, delta/2+i*delta, radius);
                 stone.attr("fill", 'r(0.5, 0.25)#fff-#aaa');
                 stone.attr("stroke-opacity", 0.2)
+                paper.stones.push(stone);
                 break;
             }
             if (i == last_move[0] && j == last_move[1]) {
@@ -190,6 +234,7 @@ function draw_stones(board, last_move, size, width, paper) {
                                       delta/2+i*delta, radius*0.5);
                 marker.attr("stroke-width", delta/8);
                 marker.attr("stroke", "#ff0000");
+                paper.stones.push(marker);
             }
         }
     }

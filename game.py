@@ -129,13 +129,14 @@ class Game(object):
         else:
             state["last_move"] = (-1, -1)
         state["board"] = self.get_board_string()
+        state["moves"] = self.get_moves()
         #return ";".join([active_player, last_move, board])
         return state
 
     def get_moves(self, start=0):
-        """Return a list of all moves from number <start>, defaults to just
+        """Return a dict of all moves from number <start>, defaults to just
         the last move."""
         if start == -1:
             start = len(moves) - 2
         moves = self.moves[start:]
-        return [dict([("n", start+i)] + m) for i, m in enumerate(moves.items())]
+        return [dict([("n", start+i)] + m.items()) for i, m in enumerate(moves)]

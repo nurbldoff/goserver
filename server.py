@@ -23,7 +23,9 @@ class BaseHandler(tornado.web.RequestHandler):
 
 
 class MainHandler(BaseHandler):
+
     @tornado.web.authenticated
+    @tornado.web.asynchronous
     def get(self):
         if not self.current_user in users:
             self.redirect("/login")
@@ -86,7 +88,12 @@ class GameHandler(BaseHandler):
             moves = game.get_moves(fr)
             self.write(json_encode(moves))
 
-        if get == "board":  # requesting the board state
+        elif get == "board":  # requesting the board
+            print "Player '%s' requested board state" % self.current_user
+            s = game.get_game_state()
+            self.write(json_encode(s))
+
+        elif get == "state":
             print "Player '%s' requested board state" % self.current_user
             s = game.get_game_state()
             self.write(json_encode(s))
