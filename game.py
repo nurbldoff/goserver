@@ -47,6 +47,7 @@ class Game(object):
         self.time = time
 
         self.captures = [0, 0]
+        self.size = board_size
         self.board = Board(board_size)
 
         self.messages = []  # list of status and chat messages
@@ -120,7 +121,8 @@ class Game(object):
 
     def get_game_state(self):
         state = {}
-        state["type"] = "board"
+        state["type"] = "state"
+        state["board_size"] = self.size
         state["black"] = self.players[0]["name"]
         state["white"] = self.players[1]["name"] if self.players[1] else None
         state["active_player"] = ("b", "w")[self.get_active_player_index()]
@@ -128,7 +130,7 @@ class Game(object):
             state["last_move"] = tuple(self.moves[-1]["position"])
         else:
             state["last_move"] = (-1, -1)
-        state["board"] = self.get_board_string()
+        #state["board"] = self.get_board_string()
         state["moves"] = self.get_moves()
         #return ";".join([active_player, last_move, board])
         return state
@@ -137,6 +139,8 @@ class Game(object):
         """Return a dict of all moves from number <start>, defaults to just
         the last move."""
         if start == -1:
-            start = len(moves) - 2
+            start = len(self.moves) - 2
         moves = self.moves[start:]
-        return [dict([("n", start+i)] + m.items()) for i, m in enumerate(moves)]
+        res = [dict([("n", start + i)] + m.items())
+               for i, m in enumerate(moves)]
+        return res

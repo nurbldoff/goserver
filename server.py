@@ -25,7 +25,6 @@ class BaseHandler(tornado.web.RequestHandler):
 class MainHandler(BaseHandler):
 
     @tornado.web.authenticated
-    @tornado.web.asynchronous
     def get(self):
         if not self.current_user in users:
             self.redirect("/login")
@@ -83,36 +82,39 @@ class GameHandler(BaseHandler):
         if user is None:
             self.redirect("/login")
 
-        if get == "moves":
-            print "Player '%s' requested moves" % self.current_user
+        elif get == "moves":
+            print "Player '%s' requested moves for game %s" % (
+                self.current_user, game_id)
             moves = game.get_moves(fr)
             self.write(json_encode(moves))
 
         elif get == "board":  # requesting the board
-            print "Player '%s' requested board state" % self.current_user
+            print "Player '%s' requested board for game %s" % (
+                self.current_user, game_id)
             s = game.get_game_state()
             self.write(json_encode(s))
 
-        elif get == "state":
-            print "Player '%s' requested board state" % self.current_user
+        elif get == "state":  # requesting complete game info
+            print "Player '%s' requested state for game %s" % (
+                self.current_user, game_id)
             s = game.get_game_state()
+            s["id"] = game_id
             self.write(json_encode(s))
 
         elif get == "chat":  # requesting chat messages
-            print "Player '%s' requested chat from %d" % (self.current_user,
-                                                          fr)
+            print "Player '%s' requested chat from %d for game %s" % (
+                self.current_user, fr, game_id)
             reply = game.messages[fr:]
             self.write(json_encode(reply))
             print json_encode(reply)
 
-        elif user and (game.players[0] != user and not all(game.players)):
+        elif user and game.players[0] != user and not all(game.players):
             # this game has no opponent - join it
             print "Player '%s' joined game %s" % (self.current_user, game_id)
             game.add_message(time.time(), "<server>",
                 "%s has joined the game! Black may begin." % self.current_user)
             game.add_player(users[self.current_user], 0)
             self.render("templates/game.html")
-
 
         else:
             self.render("templates/game.html")

@@ -1,5 +1,10 @@
 $(document).ready(function () {
 
+    $.ajaxSetup({
+        async: false
+    });
+
+
     // figure out which game we're showing
     var tmp = window.location.pathname.split("/");
     var game_id = tmp[tmp.length-1];
@@ -14,8 +19,12 @@ $(document).ready(function () {
     var game = get_game_state(game_id);
 
     // peek at the board and display it
-    data = init_board(game_id, this_player, board_size, board_width,
-                      paper);
+    //init_board(game, this_player, board_width, paper);
+    redraw_display(game, this_player, board_width, paper);
+    draw_board(game, paper);
+    draw_moves(0, game, paper);
+    //$("#messages").append($("<div>").text(game_state.message));
+
     update_chat(game_id);  // get the chat history
 
     // setup a websocket to listen for moves, chat messages and joins
@@ -26,15 +35,22 @@ $(document).ready(function () {
         type = event.data;
         switch(type) {
         case "move":
-            data = update_board(game_id, this_player, board_size, board_width,
-                                paper);
+            //data = update_board(game_id, this_player, board_size, board_width,
+            //                    paper);
+            console.log("Requesting moves from: " + game.moves.length)
+            new_moves = get_moves(game_id, game.moves.length);
+            start_from = game.moves.length;
+            game.moves  = game.moves.concat(new_moves);
+            draw_moves(start_from, game, paper);
+            redraw_display(game, this_player, board_width, paper);
+            console.log("Now have " + game.moves.length + " moves.")
             break;
         case "chat":
             update_chat(game_id);
             break;
         case "join":
-            data = update_board(game_id, this_player, board_size, board_width,
-                                paper);
+            game = get_game_state(game_id);
+            redraw_display(game, this_player, board_width, paper);
             break;
         }
     }
@@ -42,9 +58,9 @@ $(document).ready(function () {
 
     // setup redraw on window resize - doesn't handle zoom though :(
     $(window).bind('resize',function(){
-        var board_width = window.innerWidth/2;
-        update_board(game_id, this_player, board_size, board_width, paper,
-                     data);
+        game.width = window.innerWidth/2;
+        draw_board(game, paper);
+        draw_moves(0, game, paper);
     });
 
     // activate the chat button
@@ -58,49 +74,24 @@ $(document).ready(function () {
             send_chat_message();
         }
     });
-
 });
 
 function get_game_state(game_id) {
     var state;
-    $.get("/game/"+game_id+"?get=state", "", function(result) {
-        state = result
+    $.get("/game/"+game_id+"?get=state", function(data) {
+        state = data;
+    });
+    state = eval('(' + state + ')');
+    return state;
+}
+
+function get_moves(game_id, from) {
+    var state;
+    $.get("/game/"+game_id+"?get=moves&from="+from, function(data) {
+        state = data;
     });
     return eval('(' + state + ')');
 }
-
-
-function init_board(game_id,  this_player, board_size, board_width, paper,
-                    state) {
-    if (!state) {
-        $.get("/game/"+game_id+"?get=board", "", function(result) {
-            state = result
-            redraw_display(game_id, this_player, board_size, board_width,
-                           paper, result, true);
-        });
-    } else {
-        redraw_display(game_id, this_player, board_size, board_width, paper,
-                       state, true);
-    }
-    return state;
-}
-
-
-function update_board(game_id,  this_player, board_size, board_width, paper,
-                      state) {
-    if (!state) {
-        $.get("/game/"+game_id+"?get=board", "", function(result) {
-            state = result
-            redraw_display(game_id, this_player, board_size, board_width,
-                           paper, result, false);
-        });
-    } else {
-        redraw_display(game_id, this_player, board_size, board_width, paper,
-                       state, false);
-    }
-    return state;
-}
-
 
 function update_chat(game_id) {
     var fr = $("#messages").children().length;
@@ -113,55 +104,50 @@ function update_chat(game_id) {
     });
 }
 
-function redraw_display(game_id, player, size, width, paper, data, draw_all) {
-    var game_state = eval('(' + data + ')');
-    //if($("#user").text() == "
-    $("#blackStatusWrap").text(game_state.black + (game_state.black == player ? " (You)" : ""));
-    $("#whiteStatusWrap").text((game_state.white ? game_state.white : "") + (game_state.white == player ? " (You)" : ""));
-    if(game_state.active_player == "w") {
+function redraw_display(game, player, width, paper, draw_all) {
+    // Updates the game status display
+    $("#blackStatusWrap").text(game.black + (game.black == player ? " (You)" : ""));
+    $("#whiteStatusWrap").text((game.white ? game.white : "") + (game.white == player ? " (You)" : ""));
+    if((game.moves.length % 2) == 1) {
         $("#whiteStatusWrap").attr("class", "activePlayer");
         $("#blackStatusWrap").attr("class", "inactivePlayer");
     } else {
         $("#blackStatusWrap").attr("class", "activePlayer");
         $("#whiteStatusWrap").attr("class", "inactivePlayer");
     }
-    if(draw_all) {
-        draw_board(game_id, size, width, paper);
-    }
-    draw_stones(game_state.board, game_state.last_move, size, width,
-                paper);
-    //$("#messages").append($("<div>").text(game_state.message));
 }
 
+function draw_board(game, paper) {
+    // Draw a goban
 
-function draw_board(game_id, size, width, paper) {
     // background
     paper.clear()
-    paper.image("../static/goban_whole4_small.jpg", 0, 0, width, width);
+    paper.image("../static/goban_whole4_small.jpg", 0, 0,
+                paper.width, paper.width);
     //var bg = paper.rect(1, 1, width, width);
     //bg.attr("fill", "orange");
 
     // grid
-    var delta = width/size;
+    var delta = paper.width/game.board_size;
     var buffer = [];
-    for(var i=0; i<size; i++) {
+    for(var i=0; i<game.board_size; i++) {
         buffer.push("M");
         buffer.push(Math.round(delta/2)-0.5);
         buffer.push(",");
         buffer.push(Math.round(delta/2+delta*i)-0.5);
         buffer.push("h");
-        buffer.push(Math.round(width-delta)+1.5);
+        buffer.push(Math.round(paper.width-delta)+1.5);
         buffer.push("M");
         buffer.push(Math.round(delta/2+delta*i)-0.5);
         buffer.push(",");
         buffer.push(Math.round(delta/2)-0.5);
         buffer.push("v");
-        buffer.push(Math.round(width-delta)+1.5);
+        buffer.push(Math.round(paper.width-delta)+1.5);
     }
     var grid = paper.path(buffer.join(""));
     grid.attr("stroke", "#403020");
 
-    // tengen, hoshi (TODO: align better with th grid)
+    // tengen, hoshi (TODO: align better with the grid)
     var marker;
     for (var i = 0; i < 3; i++) {
         for (var j = 0; j < 3; j++) {
@@ -171,14 +157,71 @@ function draw_board(game_id, size, width, paper) {
             marker.attr("fill", "black");
         }
     }
+
+    var stone, shadow, _shadow, text;
+    var radius = 0.95*(paper.width/game.board_size)/2;
+
+    // black stone original, vill be cloned for each stone
+    _shadow = paper.circle(radius*0.1, radius*0.2, radius*0.7).attr(
+        "fill", "black");
+    shadow = _shadow.glow(radius*0.05, true, 1.0);
+    _shadow.remove();
+    stone = paper.circle(0, 0, radius);
+    stone.attr("stroke-opacity", 0.0).attr("stroke-width", 1);
+    stone.attr("fill", 'r(0.4, 0.25 )#555-#3c3c3c-#111');
+    stone.toFront();
+    stone.attr("font-size", 5);
+    text = paper.text(0, 0, "")
+    text.attr("fill", "white");
+    $(text.node).addClass("stoneText");
+    text.toFront();
+
+    paper.black_stone = paper.set();
+    paper.black_stone.push(shadow);
+    paper.black_stone.push(stone);
+    paper.black_stone.push(text);
+    paper.black_stone.text = text;
+    paper.black_stone.hide();
+
+
+    // white stone original
+    _shadow = paper.circle(radius*0.1, radius*0.2, radius*0.7).attr(
+        "fill", "black");
+    shadow = _shadow.glow(radius*0.05, true, 1.0);
+    _shadow.remove();
+    stone = paper.circle(0, 0, radius);
+    stone.attr("fill", 'r(0.4, 0.25)#fff-#ddd-#aaa');
+    stone.attr("stroke-opacity", 0.0);
+    stone.attr("font-size", 5);
+    stone.toFront();
+    text = paper.text(0, 0, "")
+    text.attr("fill", "black");
+    text.toFront();
+
+    paper.white_stone = paper.set();
+    paper.white_stone.push(shadow);
+    paper.white_stone.push(stone);
+    paper.white_stone.push(text);
+    paper.white_stone.text = text;
+    paper.white_stone.hide();
+    paper.white_stone.stone = stone;
+
+    // last move marker. Will be made visible and moved around.
+    marker = paper.circle(0, 0, radius*0.5);
+    marker.attr("stroke-width", delta/8);
+    marker.attr("stroke", "#ff0000");
+    paper.marker = paper.set();
+    paper.marker.push(marker);
+    paper.marker.hide();
+
     // click targets
     var click_handler = function () {
         //$.get("/game/"+game_id+"?move=" +
-        $.post("/game/"+game_id, {move: this.data("col")+","+this.data("row")});
+        $.post("/game/"+game.id, {move: this.data("col")+","+this.data("row")});
         //alert(this.data("col") + "," + this.data("row"));
     }
-    for (var i = 0; i < size; i++) {
-        for (var j = 0; j < size; j++) {
+    for (var i = 0; i < game.board_size; i++) {
+        for (var j = 0; j < game.board_size; j++) {
             marker = paper.rect(j*delta, i*delta, delta, delta);
             marker.attr("fill", "blue");
             marker.attr("opacity", 0.0);
@@ -191,102 +234,48 @@ function draw_board(game_id, size, width, paper) {
 }
 
 
-function draw_stones(board, last_move, size, width, paper) {
-    // stones
-    paper.stones.remove();
-    paper.stones = paper.set();
-    var delta = width/size;
-    var radius = 0.95*(width/size)/2;
-    var stone, shadow, what;
+function draw_moves(start_from, game, paper) {
+    // Draw the stones, starting from a certain move
+
+    var delta = paper.width/19;
+    var stone, shadow, move, row, col, coords;
+
     // i = row, j = column
-    for (var i = 0; i < size; i++) {
-        for (var j = 0; j < size; j++) {
-            what = board.charAt(size*i+j);
-            switch (what)
-            {
-            case "b":  // black stone
-                shadow = paper.circle(delta/2+j*delta,
-                                      delta/2+i*delta+delta/7, radius*0.95);
-                shadow.attr("fill", "black").attr("opacity", 0.5);
-                shadow.attr("stroke-opacity", 0.4).attr("stroke-width", delta/8);
-                paper.stones.push(shadow);
-                stone = paper.circle(delta/2+j*delta, delta/2+i*delta, radius);
-                stone.attr("stroke-opacity", 0.2)
-                stone.attr("fill", 'r(0.5, 0.2 )#666-#000');
-                paper.stones.push(stone);
-                break;
-            case "w":  // white stone
-                shadow = paper.circle(delta/2+j*delta, delta/2+i*delta+delta/7,
-                                      radius*0.95);
-                shadow.attr("fill", "black");
-                shadow.attr("stroke-width", delta/8);
-                shadow.attr("stroke-opacity", 0.4);
-                shadow.attr("opacity", 0.5);
-                paper.stones.push(shadow);
-                stone = paper.circle(delta/2+j*delta, delta/2+i*delta, radius);
-                stone.attr("fill", 'r(0.5, 0.25)#fff-#aaa');
-                stone.attr("stroke-opacity", 0.2)
-                paper.stones.push(stone);
-                break;
-            }
-            if (i == last_move[0] && j == last_move[1]) {
-                marker = paper.circle(delta/2+j*delta,
-                                      delta/2+i*delta, radius*0.5);
-                marker.attr("stroke-width", delta/8);
-                marker.attr("stroke", "#ff0000");
-                paper.stones.push(marker);
-            }
+    for (var i = start_from; i < game.moves.length; i++) {
+        move = game.moves[i];
+        row = move.position[0];
+        col = move.position[1];
+        coords = get_pos(row, col, game.board_size, paper);
+        coords.x += Math.random()-0.5;
+        coords.y += Math.random()-0.5;
+        switch (i % 2)
+        {
+        case 0:  // black stone
+            stone = paper.black_stone.clone();
+            stone.transform("T" + coords.x + "," + coords.y);
+            stone.show();
+            paper.stones.push(stone);
+            break;
+        case 1:  // white stone
+            stone = paper.white_stone.clone();
+            stone.transform("T" + coords.x + "," + coords.y);
+            stone.show();
+            paper.stones.push(stone);
+            break;
         }
+        stone[2].attr("text", i+1).hide();
+        stone.hover(function (a) {this[2].show();},
+                    function (a) {this[2].hide();}, stone, stone);
+
+    }
+    if (coords) {
+        paper.marker.transform("T" + coords.x + "," + coords.y);
+        paper.marker.toFront();
+        paper.marker.show();
     }
 }
 
-function draw_board_simple(state, game_id) {
-    // Draw a simple goban
-
-    // get a JSON object containing game info
-    var game_state = eval('(' + state + ')');
-
-    // build a table representing a goban
-    var $wrap = $('<div>').attr('id', 'gobanWrap');
-    var $tbl = $('<table>').attr('id', 'goban');
-    for (var i = 0; i < 19; i++) {
-        var $row = $('<tr>').attr('class', 'gobanRow')
-        for (var j = 0; j < 19; j++) {
-            var $marker = $('<td>');
-            var what = game_state.board.charAt(19*i+j);
-            switch (what)
-            {
-            case ".":
-                $marker.text("+").addClass('emptyPosition');
-                break;
-            case "b":
-                $marker.text("●").addClass('blackStone');
-                break;
-            case "w":
-                $marker.text("●").addClass('whiteStone');
-                break;
-            }
-            $marker.addClass('gobanPosition');
-            $marker.attr("row", i).attr("col", j);
-            $marker.click(function () {
-                $.get("/game/"+game_id+"?move=" +
-                      $(this).attr("row")+","+$(this).attr("col"));
-            });
-            $row.append($marker);
-        }
-        $tbl.append($row);
-    }
-
-    // show whose move it is
-    var active_player;
-    if(game_state.active_player == "b") {
-        active_player = "Black";
-    } else {
-        active_player = "White";
-    }
-
-    $wrap.append($("<p>").text(active_player + "'s turn!"));
-    $wrap.append($tbl);
-    //$wrap.append($("<p>").text(game_state.board));
-    $("#gobanWrap").replaceWith($wrap);
-};
+function get_pos(row, col, size, paper) {
+    var delta = paper.width / size;
+    return({x: delta/2 + delta*col - 0.5, y: delta/2 + delta*row - 0.5});
+}
