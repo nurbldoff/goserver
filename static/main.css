@@ -60,6 +60,32 @@ td.messages {
     max-height: 100%;
 }
 
+div.messages {
+    background-color: white;
+    overflow-y: scroll;
+    height: 300px;
+}
+
+#Ggoban {
+    background: orange;
+    font-family: monospace;
+    font-size: x-large;
+    user-select: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -o-user-select: none;
+}
+
+.gobanPosition {
+    text-align: center;
+}
+
+.whiteStone {
+    font-weight: 200;
+    color: white;
+}
+
 #messages {
     background-color: white;
 }

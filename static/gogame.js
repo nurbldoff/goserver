@@ -102,8 +102,14 @@ function update_chat(game_id) {
             $msg.append($("<span>").text(message.user).addClass("chatUser"));
             $msg.append($("<span>").text(message.content));
             $("#messages").append($msg);
+            //$("#messages").prop({ scrollTop: $("#messages").prop("scrollHeight") });
+
         });
+        $("#messages").animate({ scrollTop: $("#messages").prop("scrollHeight") }, 300);
     });
+    //$("#messages").css("height", $("td.messages").prop("height"));
+
+
 }
 
 function redraw_display(game, player, width, paper, draw_all) {
