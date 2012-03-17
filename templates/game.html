@@ -32,13 +32,19 @@
       <div id="gobanWrap"></div>
     </td>
 
-    <td class="messages">
-      <div id="messages" class="messages">
-      </div>
-      <div>
-        <input type="text" id="chatInput" />
-        <button id="chatButton">Send</button>
-      </div>
+    <td id="messagesTd", class="messages">
+      <table class="messages">
+        <tr>
+          <td  colspan="2" id="messages" class="messages">
+          </td>
+        <tr>
+          <td>
+            <input type="text" id="chatInput" />
+          </td><td>
+            <button id="chatButton">Send</button>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 </table>
