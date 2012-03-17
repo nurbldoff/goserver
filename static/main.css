@@ -53,6 +53,7 @@ td.messages {
 div.messages {
     background-color: white;
     overflow-y: scroll;
+    height: 300px;
 }
 
 #Ggoban {

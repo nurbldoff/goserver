@@ -75,8 +75,14 @@ function update_chat(game_id) {
         $.each(chat_data, function(i, message) {
             var $msg = $("<div>").text(message.user+":"+message.content);
             $("#messages").append($msg);
+            //$("#messages").prop({ scrollTop: $("#messages").prop("scrollHeight") });
+
         });
+        $("#messages").animate({ scrollTop: $("#messages").prop("scrollHeight") }, 300);
     });
+    //$("#messages").css("height", $("td.messages").prop("height"));
+
+
 }
 
 function redraw_display(game_id, player, size, width, paper, data) {
