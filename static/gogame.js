@@ -98,7 +98,9 @@ function update_chat(game_id) {
     $.get("/game/"+game_id+"?get=chat&from="+fr, "", function(result) {
         var chat_data = eval('(' + result + ')');
         $.each(chat_data, function(i, message) {
-            var $msg = $("<div>").text(message.user+":"+message.content);
+            var $msg = $("<div>");
+            $msg.append($("<span>").text(message.user).addClass("chatUser"));
+            $msg.append($("<span>").text(message.content));
             $("#messages").append($msg);
         });
     });
