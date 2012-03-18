@@ -15,23 +15,19 @@ class NoOpponent(IllegalMove):
     pass
 
 
-class Board(object):
-    def __init__(self, size):
-        self.positions = [[[] for i in range(size)] for j in range(size)]
-
-    def place_stone(self, player, position, cleanup=True):
-        row, col = position
-        if self.positions[row][col]:
-            raise PositionAlreadyTaken
-        else:
-            self.positions[row][col].append(player)
-            if cleanup:
-                return self.check_for_captures()
-            else:
-                return []
-
-    def check_for_captures(self):
-        return []
+def check_move(move, previous_moves, size=19):
+    """Check a move against the rules.
+    Returns a list of captured stones.
+    Raises IllegalMove if the move could not legally be made.
+    """
+    # board is a dict, representing the board
+    board = dict([(m["position"], ["b", "w"][i % 2])
+                  for i, m in enumerate(previous_moves)
+                  if m["position"]])
+    captures = []
+    if board.get(move["position"], None):
+        raise PositionAlreadyTaken
+    return captures
 
 
 class Game(object):
@@ -48,7 +44,6 @@ class Game(object):
 
         self.captures = [0, 0]
         self.size = board_size
-        self.board = Board(board_size)
 
         self.messages = []  # list of status and chat messages
         self.sockets = []
@@ -93,10 +88,10 @@ class Game(object):
     def make_move(self, time, position, player=None):
         """Make a move."""
         self.validate_move(player, position)
-        captures = self.board.place_stone(player, position)
-        self.moves.append({"player": player,
-                           "position": position,
-                           "time": time})
+        move = dict(player=player, position=tuple(position), time=time)
+        captures = check_move(move, self.moves)
+        #captures = self.board.place_stone(player, position)
+        self.moves.append(move)
         self.captures[self.get_active_player_index()] += len(captures)
         self.announce_move()
 
@@ -105,19 +100,19 @@ class Game(object):
         self.messages.append({"time": time, "user": user, "content": content})
         self.announce_chat()
 
-    def get_board_string(self):
-        s = ""
-        n = 0
-        for row in self.board.positions:
-            for place in row:
-                if place:
-                    if self.players[0] in place:
-                        s += "b"
-                    elif self.players[1] in place:
-                        s += "w"
-                else:
-                    s += "."
-        return s
+    # def get_board_string(self):
+    #     s = ""
+    #     n = 0
+    #     for row in self.board.positions:
+    #         for place in row:
+    #             if place:
+    #                 if self.players[0] in place:
+    #                     s += "b"
+    #                 elif self.players[1] in place:
+    #                     s += "w"
+    #             else:
+    #                 s += "."
+    #     return s
 
     def get_game_state(self):
         state = {}
