@@ -47,17 +47,12 @@ div.activePlayer {
 }
 
 table.messages {
-    position: relative;
     width: 100%;
-    max-height: 100%;
 }
 
 td.messages {
-    position: relative;
-    vertical-align: bottom;
-    overflow-y: auto;
+    vertical-align: top;
     width: 100%;
-    max-height: 100%;
 }
 
 div.messages {

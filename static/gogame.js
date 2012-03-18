@@ -107,7 +107,7 @@ function update_chat(game_id) {
         });
         $("#messages").animate({ scrollTop: $("#messages").prop("scrollHeight") }, 300);
     });
-    //$("#messages").css("height", $("td.messages").prop("height"));
+    //$("#messages").css("height", "300px");
 
 
 }
