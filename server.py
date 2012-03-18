@@ -5,6 +5,7 @@ import tornado.ioloop
 import tornado.web
 from tornado import websocket
 from tornado.escape import json_encode
+from tornado.options import define, options
 
 from game import Game, IllegalMove, NoOpponent, PositionAlreadyTaken
 
@@ -186,21 +187,34 @@ users = {"test": {"password": "testpass", "name": "test"}}
 
 games = {}
 
-settings = {
-    "static_path": os.path.join(os.path.dirname(__file__), "static"),
-    "cookie_secret": "61oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
-    "login_url": "/login",
-    "debug": True
-}
 
-application = tornado.web.Application([
+class Application(tornado.web.Application):
+    def __init__(self):
+        settings = dict(
+            static_path=os.path.join(os.path.dirname(__file__), "static"),
+            cookie_secret="61oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo=",
+            login_url="/login",
+            debug=True
+            )
+        handlers = [
             (r"/", MainHandler),
             (r"/login", LoginHandler),
             (r"/logout", LogoutHandler),
             (r"/socket", ClientSocket),
             (r"/game/([0-9]+)", GameHandler)
-            ], **settings)
+            ]
+        tornado.web.Application.__init__(self, handlers, **settings)
+
+
+define("port", default=8889, help="run on the given port", type=int)
+
+
+def main():
+    tornado.options.parse_command_line()
+    app = Application()
+    app.listen(options.port)
+    tornado.ioloop.IOLoop.instance().start()
+
 
 if __name__ == "__main__":
-    application.listen(8889)
-    tornado.ioloop.IOLoop.instance().start()
+    main()

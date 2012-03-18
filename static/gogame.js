@@ -280,11 +280,10 @@ function draw_moves(start_from, game, paper) {
         case 0:  // black stone
             stone = paper.black_stone.clone();
             stone.transform("T" + coords.x + "," + coords.y);
-            stone[0].toBack();
-            paper.board.toBack();
+            stone[0].toBack();     // a hack to prevent the shadow
+            paper.board.toBack();  // from covering nearby stones
             stone.show();
             paper.stones.push(stone);
-
             break;
         case 1:  // white stone
             stone = paper.white_stone.clone();
@@ -298,7 +297,6 @@ function draw_moves(start_from, game, paper) {
         stone[2].attr("text", i+1).hide();
         stone.hover(function (a) {this[2].show();},
                     function (a) {this[2].hide();}, stone, stone);
-
     }
     if (coords) {
         paper.marker.transform("T" + coords.x + "," + coords.y);
