@@ -130,8 +130,10 @@ function draw_board(game, paper) {
 
     // background
     paper.clear()
-    paper.image("../static/goban_whole4_small.jpg", 0, 0,
-                paper.width, paper.width);
+    var board_bg = paper.image("../static/goban_whole4_small.jpg", 0, 0,
+                               paper.width, paper.width);
+    var board = paper.set();
+    paper.board = board;
     //var bg = paper.rect(1, 1, width, width);
     //bg.attr("fill", "orange");
 
@@ -144,16 +146,17 @@ function draw_board(game, paper) {
         buffer.push(",");
         buffer.push(Math.round(delta/2+delta*i)-0.5);
         buffer.push("h");
-        buffer.push(Math.round(paper.width-delta)+1.5);
+        buffer.push(Math.round(paper.width-delta));
         buffer.push("M");
         buffer.push(Math.round(delta/2+delta*i)-0.5);
         buffer.push(",");
         buffer.push(Math.round(delta/2)-0.5);
         buffer.push("v");
-        buffer.push(Math.round(paper.width-delta)+1.5);
+        buffer.push(Math.round(paper.width-delta));
     }
     var grid = paper.path(buffer.join(""));
     grid.attr("stroke", "#403020");
+    board.push(grid);
 
     // tengen, hoshi (TODO: align better with the grid)
     var marker;
@@ -163,8 +166,12 @@ function draw_board(game, paper) {
                                   delta/12);
             marker.attr("stroke-width", 0);
             marker.attr("fill", "black");
+            board.push(marker);
         }
     }
+    board.push(grid);
+    board.push(board_bg);
+    paper.board.toBack();
 
     var stone, shadow, _shadow, text;
     var radius = 0.95*(paper.width/game.board_size)/2;
@@ -222,23 +229,35 @@ function draw_board(game, paper) {
     paper.marker.push(marker);
     paper.marker.hide();
 
-    // click targets
-    var click_handler = function () {
-        //$.get("/game/"+game_id+"?move=" +
-        $.post("/game/"+game.id, {move: this.data("col")+","+this.data("row")});
-        //alert(this.data("col") + "," + this.data("row"));
-    }
-    for (var i = 0; i < game.board_size; i++) {
-        for (var j = 0; j < game.board_size; j++) {
-            marker = paper.rect(j*delta, i*delta, delta, delta);
-            marker.attr("fill", "blue");
-            marker.attr("opacity", 0.0);
-            marker.data("row", j);
-            marker.data("col", i);
-            marker.click(click_handler);
-            //marker.attr("href", "/game/"+game_id+"?move="+j+","+i);
-        }
-    }
+    board.click(function(event) {   // Handle mouse clicks
+        var posx = event.pageX-$("#gobanWrap").offset().left;
+        var posy = event.pageY-$("#gobanWrap").offset().top;
+        var row = Math.floor(posy / (paper.height / game.board_size));
+        var col = Math.floor(posx / (paper.width / game.board_size));
+        $.post("/game/"+game.id, {move: row+","+col});
+    });
+
+    // FIXME: Hover function flickers too much.
+    // board.hover(function(event) {   // Handle mouse clicks
+    //     var posx = event.pageX-$("#gobanWrap").offset().left;
+    //     var posy = event.pageY-$("#gobanWrap").offset().top;
+    //     var row = Math.floor(posy / (paper.height / game.board_size));
+    //     var col = Math.floor(posx / (paper.width / game.board_size));
+    //     // try {
+    //     //     paper.ghost.remove();
+    //     // } catch(err) {}
+    //     if(game.moves.length) {
+    //         paper.ghost = paper.black_stone.clone();
+    //     } else {
+    //         paper.ghost = paper.white_stone.clone();
+    //     }
+    //     paper.ghost.transform("T"+((col+0.5)*delta)+","+((row+0.5)*delta));
+    //     paper.ghost.show();
+    // }, function(event) {
+    //     try {
+    //         paper.ghost.remove();
+    //     } catch(err) { }
+    // });
 }
 
 
@@ -261,12 +280,17 @@ function draw_moves(start_from, game, paper) {
         case 0:  // black stone
             stone = paper.black_stone.clone();
             stone.transform("T" + coords.x + "," + coords.y);
+            stone[0].toBack();
+            paper.board.toBack();
             stone.show();
             paper.stones.push(stone);
+
             break;
         case 1:  // white stone
             stone = paper.white_stone.clone();
             stone.transform("T" + coords.x + "," + coords.y);
+            stone[0].toBack();
+            paper.board.toBack();
             stone.show();
             paper.stones.push(stone);
             break;
