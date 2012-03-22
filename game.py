@@ -14,36 +14,80 @@ class PositionAlreadyTaken(IllegalMove):
 class NoOpponent(IllegalMove):
     pass
 
-
 def check_move(move, previous_moves, size=19):
     """Check a move against the rules.
-    Returns a list of captured stones.
+    Returns a set containing any captured stones.
     Raises IllegalMove if the move could not legally be made.
     """
     # board is a dict, representing the board
-    WHITE, BLACK, FREE, OUTSIDE = 0, 1, 2, 3
-    board = dict([(m["position"], [BLACK, WHITE][i % 2])
+    BLACK, WHITE, FREE, OUTSIDE = 0, 1, 2, 3
+    board = dict([(m["position"], [BLACK, WHITE][m["player"]])
                   for i, m in enumerate(previous_moves)
                   if m["position"]])
-    #board.__getitem__ = lambda self, p: self.get(p, FREE)
-    captures = []
+    captures = set()
+    player = move["player"]
+    opponent = [BLACK, WHITE][not player]
 
-    def check(pos):
+    # define some helper functions
+    def peek(pos):
         "Returns what's at the requested position"
         if 0 <= pos[0] < size and 0 <= pos[1] < size:
             return board.get(pos, FREE)
         else:
             return OUTSIDE
 
-    def get_neighbors(pos):
-        "Returns a tuple of the four neighbors"
-        return (check((pos[0], pos[1] + 1)),
-                check((pos[0] - 1, pos[1])),
-                check((pos[0], pos[1] - 1)),
-                check((pos[0] + 1, pos[1])))
+    def connected(pos, only=[BLACK, WHITE, FREE]):
+        """Returns the positions connected to a position, i.e. the direct
+        neighbors, if what's there matches the 'only' argument"""
+        x, y = pos
+        conn = [p for p in ((x, y + 1), (x - 1, y), (x, y - 1), (x + 1, y))
+                if peek(p) in only]
+        return conn
 
-    if board.get(move["position"], None):
-        raise PositionAlreadyTaken
+    def peek_neighbors(pos):
+        "Returns a tuple of the four neighbors"
+        return map(peek, connected(pos))
+
+    def get_group(pos, group=None):
+        """Get all stones connected to the given stone"""
+        if group is None: group = set()
+        group.add(pos)
+        color = peek(pos)
+        for friend in [n for n in connected(pos, only=[color])
+                       if not n in group]:
+            group = get_group(friend, group)
+        return group
+
+    def get_group_freedoms(group):
+        """Returns all freedoms for a given set of stones"""
+        freedoms = set()
+        color = peek(iter(group).next())  # ugly way of getting one element
+        for stone in group:
+            freedoms = freedoms.union(set(connected(stone, only=[FREE])))
+        return freedoms
+
+    def freedoms(pos):
+        """Get direct or indirect freedoms for a given stone"""
+        return get_group_freedoms(get_group(pos))
+
+    # check if the move is possible at all
+    if peek(move["position"]) in (BLACK, WHITE, OUTSIDE):
+        raise IllegalMove
+
+    # OK, let's put a hypothetical stone there.
+    board[move["position"]] = player
+
+    # check if the move is suicidal, i.e. no freedoms for the stone or group
+    if not freedoms(move["position"]):
+        raise IllegalMove
+
+    # TODO: check for Ko...
+
+    # Now we only need to check if it makes any captures.
+    for stone in connected(move["position"], only=[opponent]):
+        gr = get_group(stone)
+        if not get_group_freedoms(gr):
+            captures.update(gr)
 
     return captures
 
