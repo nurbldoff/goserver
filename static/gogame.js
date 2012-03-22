@@ -297,6 +297,11 @@ function draw_moves(start_from, game, paper) {
         stone[2].attr("text", i+1).hide();
         stone.hover(function (a) {this[2].show();},
                     function (a) {this[2].hide();}, stone, stone);
+        if (move.captures) {
+            for (var j=0; j<move.captures.length; j++) {
+                paper.stones[move.captures[j]].remove();
+            }
+        }
     }
     if (coords) {
         paper.marker.transform("T" + coords.x + "," + coords.y);

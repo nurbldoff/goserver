@@ -3,6 +3,7 @@ from collections import namedtuple, defaultdict
 
 from tornado.escape import json_encode
 
+
 class IllegalMove(Exception):
     pass
 
@@ -14,16 +15,17 @@ class PositionAlreadyTaken(IllegalMove):
 class NoOpponent(IllegalMove):
     pass
 
+
 def check_move(move, previous_moves, size=19):
     """Check a move against the rules.
-    Returns a set containing any captured stones.
+    Returns a list of move indexes for any captured stones.
     Raises IllegalMove if the move could not legally be made.
     """
     # board is a dict, representing the board
     BLACK, WHITE, FREE, OUTSIDE = 0, 1, 2, 3
     board = dict([(m["position"], [BLACK, WHITE][m["player"]])
                   for i, m in enumerate(previous_moves)
-                  if m["position"]])
+                  if m["position"] and not m.get("captured", False)])
     captures = set()
     player = move["player"]
     opponent = [BLACK, WHITE][not player]
@@ -70,6 +72,20 @@ def check_move(move, previous_moves, size=19):
         """Get direct or indirect freedoms for a given stone"""
         return get_group_freedoms(get_group(pos))
 
+    def positions_to_indexes(poss):
+        """Convert positions on the board into move indexes, for storage"""
+        tmp = set(poss)
+        indexes = []
+        i = len(previous_moves) - 1
+        while tmp:
+            m = previous_moves[i]["position"]
+            if m in tmp:
+                indexes = [i] + indexes
+                tmp.remove(m)
+            i -= 1  # count backwards, because only the latest move at the
+                    # specific position can be captured now, obviously
+        return indexes
+
     # check if the move is possible at all
     if peek(move["position"]) in (BLACK, WHITE, OUTSIDE):
         raise IllegalMove
@@ -77,19 +93,25 @@ def check_move(move, previous_moves, size=19):
     # OK, let's put a hypothetical stone there.
     board[move["position"]] = player
 
-    # check if the move is suicidal, i.e. no freedoms for the stone or group
-    if not freedoms(move["position"]):
-        raise IllegalMove
+    # check if the move is potentially suicidal, i.e. no freedoms for
+    # the stone or group.
+    maybe_suicide = not freedoms(move["position"])
+    # It's OK to put a stone i a place without freedoms IFF it causes the
+    # immediate capture of opponent stones. We need to check that later.
 
     # TODO: check for Ko...
 
-    # Now we only need to check if it makes any captures.
+    # Now we check if the move makes any captures.
     for stone in connected(move["position"], only=[opponent]):
         gr = get_group(stone)
         if not get_group_freedoms(gr):
             captures.update(gr)
 
-    return captures
+    # completing the suicide check
+    if maybe_suicide and len(captures) == 0:
+        raise IllegalMove
+
+    return positions_to_indexes(captures)
 
 
 class Game(object):
@@ -104,7 +126,7 @@ class Game(object):
         self.moves = []
         self.time = time
 
-        self.captures = [0, 0]
+        self.captures = [defaultdict(set), defaultdict(set)]
         self.size = board_size
 
         self.messages = []  # list of status and chat messages
@@ -138,24 +160,31 @@ class Game(object):
         self.handicap = handicap
         self.announce_join()
 
-    def validate_move(self, player, position):
-        """Check if a move is legal"""
-        # here should be some go logic to check if the move is OK
+    def validate_move(self, move):
+        """Try to make the move and calculate captures.
+        Will raise errors if something goes wrong."""
         if not all(self.players):
             raise NoOpponent
-        if player != self.get_active_player():
-            print player, self.get_active_player()
+        if move["player"] != self.get_active_player_index():
             raise IllegalMove
+        return check_move(move, self.moves, self.size)
 
-    def make_move(self, time, position, player=None):
+    def make_move(self, time, position, player):
         """Make a move."""
-        self.validate_move(player, position)
         move = dict(player=self.players.index(player),
                     position=tuple(position), time=time)
-        captures = check_move(move, self.moves, self.size)
-        #captures = self.board.place_stone(player, position)
+        captures = self.validate_move(move)
+        if captures:
+            #move["captures"] = captures
+            self.captures[self.players.index(player)][len(self.moves)] = \
+                set(captures)
+            for i in captures:
+                self.moves[i]["captured"] = True
+            #self.captures[self.players.index(player)] += len(captures)
+            print "Player '%s' captured %d stones!" % (player["name"],
+                                                       len(captures))
         self.moves.append(move)
-        self.captures[self.get_active_player_index()] += len(captures)
+        #self.captures[self.get_active_player_index()] += len(captures)
         self.announce_move()
 
     def add_message(self, time, user, content):
@@ -194,11 +223,16 @@ class Game(object):
         return state
 
     def get_moves(self, start=0):
-        """Return a dict of all moves from number <start>, defaults to just
-        the last move."""
+        """Return a dict of all moves from number <start>"""
         if start == -1:
             start = len(self.moves) - 2
         moves = self.moves[start:]
-        res = [dict([("n", start + i)] + m.items())
-               for i, m in enumerate(moves)]
+        res = []
+        for i, m in enumerate(moves):
+            move = dict(m)
+            move["n"] = start + i
+            move["captures"] = list(self.captures[m["player"]][start + i])
+            res.append(move)
+        #res = [dict([("n", start + i)] + m.items())
+        #       for i, m in enumerate(moves)]
         return res

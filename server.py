@@ -126,8 +126,8 @@ class GameHandler(BaseHandler):
         message = self.get_argument('message', default=None)
 
         if move:  # making a move
-            player = users[self.current_user]
-            print "Player %s made a move!" % player["name"]
+            player = users.get(self.current_user, None)
+            print "Player %s made a move..." % player["name"],
             position = [int(x) for x in move.split(",")]
             try:
                 game.make_move(time.time(), position, player)
@@ -137,8 +137,10 @@ class GameHandler(BaseHandler):
                 print "Position taken!"
             except IllegalMove:
                 print "Not player %s's turn!" % player["name"]
-
-
+            except KeyError:
+                print "No such user: %s!" % self.current_user
+            else:
+                print "OK"
         elif message:
             game.add_message(time.time(), self.current_user, message)
             print "posted:", message

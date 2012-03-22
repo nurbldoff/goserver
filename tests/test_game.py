@@ -29,7 +29,7 @@ class TestCheckMove(unittest.TestCase):
     def test_position_not_taken(self):
         previous_moves = self._create_moves([(1, 2), (3, 4)])
         move = {"player": 0, "position": (1, 3)}
-        self.assertEquals(check_move(move, previous_moves, self.size), set([]))
+        self.assertEquals(check_move(move, previous_moves, self.size), [])
 
     def test_position_taken(self):
         previous_moves = self._create_moves([(1, 2), (3, 4)])
@@ -50,7 +50,7 @@ class TestCheckMove(unittest.TestCase):
                                          (0, 1), (2, 1),
                                              (1, 2)])
         move = {"player": 0, "position": (1, 1)}
-        self.assertEquals(check_move(move, previous_moves, self.size), set([]))
+        self.assertEquals(check_move(move, previous_moves, self.size), [])
 
     def test_part_of_small_group_with_freedoms(self):
         previous_moves = self._create_moves_from_ascii("""+++++
@@ -59,7 +59,7 @@ class TestCheckMove(unittest.TestCase):
                                                           ++O++
                                                           +++++""")
         move = {"player": 0, "position": (2, 2)}
-        self.assertEquals(check_move(move, previous_moves, self.size), set([]))
+        self.assertEquals(check_move(move, previous_moves, self.size), [])
 
     def test_part_of_small_group_without_freedoms(self):
         previous_moves = self._create_moves_from_ascii("""+++++
@@ -78,7 +78,7 @@ class TestCheckMove(unittest.TestCase):
                                                           +OOXO
                                                           +++++""")
         move = {"player": 0, "position": (2, 2)}
-        self.assertEquals(check_move(move, previous_moves, self.size), set([]))
+        self.assertEquals(check_move(move, previous_moves, self.size), [])
 
     def test_part_of_group_taking_the_last_freedom(self):
         previous_moves = self._create_moves_from_ascii("""+++++
@@ -97,7 +97,7 @@ class TestCheckMove(unittest.TestCase):
                                                           +OOXX
                                                           ++++O""")
         move = {"player": 0, "position": (2, 2)}
-        self.assertEquals(check_move(move, previous_moves, self.size), set([]))
+        self.assertEquals(check_move(move, previous_moves, self.size), [])
 
     def test_part_of_edge_group_with_freedoms(self):
         previous_moves = self._create_moves_from_ascii("""+++++
@@ -109,6 +109,16 @@ class TestCheckMove(unittest.TestCase):
         with self.assertRaises(IllegalMove):
             check_move(move, previous_moves, self.size)
 
+    def test_capture_single_stone(self):
+        previous_moves = self._create_moves_from_ascii("""+++++
+                                                          ++X++
+                                                          +XOX+
+                                                          +++++
+                                                          +++++""")
+        move = {"player": 0, "position": (2, 3)}
+        self.assertEquals(check_move(move, previous_moves, self.size),
+                          [2])
+
     def test_capture_edge_group(self):
         previous_moves = self._create_moves_from_ascii("""+++++
                                                           +++XX
@@ -117,4 +127,4 @@ class TestCheckMove(unittest.TestCase):
                                                           +++++""")
         move = {"player": 0, "position": (2, 2)}
         self.assertEquals(check_move(move, previous_moves, self.size),
-                          set([(3, 2), (4, 2)]))
+                          [2, 3])
