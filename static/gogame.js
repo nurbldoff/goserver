@@ -23,6 +23,12 @@ $(document).ready(function () {
     redraw_display(game, this_player, board_width, paper);
     draw_board(game, paper);
     draw_moves(0, game, paper);
+    if (this_player == game.black || this_player == game.white) {
+        console.log("hejhej");
+        $("#pass").click(function () {
+            $.post("/game/"+game.id, {move: "pass"});
+        });
+    }
     //$("#messages").append($("<div>").text(game_state.message));
 
     update_chat(game_id);  // get the chat history

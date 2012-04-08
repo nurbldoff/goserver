@@ -126,6 +126,9 @@ class GameHandler(BaseHandler):
         message = self.get_argument('message', default=None)
 
         if move:  # making a move
+            if move == "pass":
+                position = None
+                console.log("Pass from player %s" % self.current_user)
             player = users.get(self.current_user, None)
             print "Player %s made a move..." % player["name"],
             position = [int(x) for x in move.split(",")]

@@ -125,6 +125,7 @@ class Game(object):
         self.handicap = handicap
         self.moves = []
         self.time = time
+        self.finished = False
 
         self.captures = [defaultdict(set), defaultdict(set)]
         self.size = board_size
@@ -171,21 +172,37 @@ class Game(object):
 
     def make_move(self, time, position, player):
         """Make a move."""
+        if self.finished:
+            raise IllegalMove
+
         move = dict(player=self.players.index(player),
                     position=tuple(position), time=time)
-        captures = self.validate_move(move)
-        if captures:
-            #move["captures"] = captures
-            self.captures[self.players.index(player)][len(self.moves)] = \
-                set(captures)
-            for i in captures:
-                self.moves[i]["captured"] = True
-            #self.captures[self.players.index(player)] += len(captures)
-            print "Player '%s' captured %d stones!" % (player["name"],
-                                                       len(captures))
+
+        if position is not None:  # if it's not a pass
+            captures = self.validate_move(move)
+            if captures:
+                #move["captures"] = captures
+                self.captures[self.players.index(player)][len(self.moves)] = \
+                    set(captures)
+                for i in captures:
+                    self.moves[i]["captured"] = True
+                #self.captures[self.players.index(player)] += len(captures)
+                print "Player '%s' captured %d stones!" % (player["name"],
+                                                           len(captures))
         self.moves.append(move)
         #self.captures[self.get_active_player_index()] += len(captures)
         self.announce_move()
+
+        #Check if the match is over (both players pass)
+        if (len(self.moves) >= 2 and
+                self.moves[-1]["position"] == self.moves[-2]["position"] == \
+                None):
+            self.finish()
+
+    def finish():
+        """End the game."""
+        self.finished = True
+        # Calculate points, etc
 
     def add_message(self, time, user, content):
         """Send a chat message"""
@@ -209,6 +226,7 @@ class Game(object):
     def get_game_state(self):
         state = {}
         state["type"] = "state"
+        state["finished"] = self.finished
         state["board_size"] = self.size
         state["black"] = self.players[0]["name"]
         state["white"] = self.players[1]["name"] if self.players[1] else None
