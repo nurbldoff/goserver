@@ -23,6 +23,12 @@ $(document).ready(function () {
     redraw_display(game, this_player, board_width, paper);
     draw_board(game, paper);
     draw_moves(0, game, paper);
+    if (this_player == game.black || this_player == game.white) {
+        console.log("hejhej");
+        $("#pass").click(function () {
+            $.post("/game/"+game.id, {move: "pass"});
+        });
+    }
     //$("#messages").append($("<div>").text(game_state.message));
 
     update_chat(game_id);  // get the chat history
@@ -297,6 +303,11 @@ function draw_moves(start_from, game, paper) {
         stone[2].attr("text", i+1).hide();
         stone.hover(function (a) {this[2].show();},
                     function (a) {this[2].hide();}, stone, stone);
+        if (move.captures) {
+            for (var j=0; j<move.captures.length; j++) {
+                paper.stones[move.captures[j]].remove();
+            }
+        }
     }
     if (coords) {
         paper.marker.transform("T" + coords.x + "," + coords.y);
