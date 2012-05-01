@@ -8,24 +8,30 @@ class IllegalMove(Exception):
     pass
 
 
-class PositionAlreadyTaken(IllegalMove):
-    pass
-
-
-class NoOpponent(IllegalMove):
-    pass
-
-
 def check_move(move, previous_moves, size=19):
-    """Check a move against the rules.
+    """Check if a move can be made.
     Returns a list of move indexes for any captured stones.
     Raises IllegalMove if the move could not legally be made.
     """
-    # board is a dict, representing the board
+    # Some constants for what can possibly be at a position
     BLACK, WHITE, FREE, OUTSIDE = 0, 1, 2, 3
-    board = dict([(m["position"], [BLACK, WHITE][m["player"]])
-                  for i, m in enumerate(previous_moves)
-                  if m["position"] and not m.get("captured", False)])
+
+    # Build a board representation from the list of all moves
+    board = {}
+    for i, m in enumerate(previous_moves):
+        color = [BLACK, WHITE][m["player"]]
+        position = m.get("position", False)
+        if position:
+            board[tuple(position)] = color
+        captures = m.get("captures", None)
+        if captures is not None:
+            for cap in captures:
+                del board[tuple(previous_moves[cap]["position"])]
+
+    # board = dict([(tuple(m["position"]), [BLACK, WHITE][m["player"]])
+    #               for i, m in enumerate(previous_moves)
+    #               if m["position"] and not m.get("captured", False)])
+
     captures = set()
     player = move["player"]
     opponent = [BLACK, WHITE][not player]
@@ -33,14 +39,15 @@ def check_move(move, previous_moves, size=19):
     # define some helper functions
     def peek(pos):
         "Returns what's at the requested position"
-        if 0 <= pos[0] < size and 0 <= pos[1] < size:
+        x, y = pos
+        if (0 <= x < size) and (0 <= y < size):
             return board.get(pos, FREE)
         else:
             return OUTSIDE
 
     def connected(pos, only=[BLACK, WHITE, FREE]):
-        """Returns the positions connected to a position, i.e. the direct
-        neighbors, if what's there matches the 'only' argument"""
+        """Returns the positions 4-connected to a position, i.e. the direct
+        neighbors, if what's there is also in the 'only' argument"""
         x, y = pos
         conn = [p for p in ((x, y + 1), (x - 1, y), (x, y - 1), (x + 1, y))
                 if peek(p) in only]
@@ -50,9 +57,8 @@ def check_move(move, previous_moves, size=19):
         "Returns a tuple of the four neighbors"
         return map(peek, connected(pos))
 
-    def get_group(pos, group=None):
+    def get_group(pos, group=set()):
         """Get all stones connected to the given stone"""
-        if group is None: group = set()
         group.add(pos)
         color = peek(pos)
         for friend in [n for n in connected(pos, only=[color])
@@ -63,7 +69,7 @@ def check_move(move, previous_moves, size=19):
     def get_group_freedoms(group):
         """Returns all freedoms for a given set of stones"""
         freedoms = set()
-        color = peek(iter(group).next())  # ugly way of getting one element
+        #color = peek(iter(group).next())  # ugly way of getting one element
         for stone in group:
             freedoms = freedoms.union(set(connected(stone, only=[FREE])))
         return freedoms
@@ -78,7 +84,7 @@ def check_move(move, previous_moves, size=19):
         indexes = []
         i = len(previous_moves) - 1
         while tmp:
-            m = previous_moves[i]["position"]
+            m = tuple(previous_moves[i]["position"])
             if m in tmp:
                 indexes = [i] + indexes
                 tmp.remove(m)
@@ -88,7 +94,7 @@ def check_move(move, previous_moves, size=19):
 
     # check if the move is possible at all
     if peek(move["position"]) in (BLACK, WHITE, OUTSIDE):
-        raise IllegalMove
+        raise IllegalMove("No room!")
 
     # OK, let's put a hypothetical stone there.
     board[move["position"]] = player
@@ -96,7 +102,7 @@ def check_move(move, previous_moves, size=19):
     # check if the move is potentially suicidal, i.e. no freedoms for
     # the stone or group.
     maybe_suicide = not freedoms(move["position"])
-    # It's OK to put a stone i a place without freedoms IFF it causes the
+    # It's OK to use up a group's last freedom IFF it causes the
     # immediate capture of opponent stones. We need to check that later.
 
     # TODO: check for Ko...
@@ -109,7 +115,7 @@ def check_move(move, previous_moves, size=19):
 
     # completing the suicide check
     if maybe_suicide and len(captures) == 0:
-        raise IllegalMove
+        raise IllegalMove("Suidice move!")
 
     return positions_to_indexes(captures)
 
@@ -119,19 +125,17 @@ class Game(object):
     This class represents a game of Go.
     """
 
-    def __init__(self, black_player, white_player=None,
-                 board_size=19, handicap=0, time=None):
-        self.players = [black_player, white_player]
-        self.handicap = handicap
-        self.moves = []
-        self.time = time
-        self.finished = False
-
-        self.captures = [defaultdict(set), defaultdict(set)]
-        self.size = board_size
-
-        self.messages = []  # list of status and chat messages
-        self.sockets = []
+    def __init__(self, id=-1, black_player=None, white_player=None,
+                 board_size=19, handicap=0, time=None, dbdict=None):
+        if dbdict is not None:
+            self.from_dbdict(dbdict)
+        else:
+            self.id = id
+            self.players = [black_player, white_player]
+            self.handicap = handicap
+            self.moves = []
+            self.finished = False
+            self.size = board_size
 
     def get_active_player_index(self):
         return len(self.moves) % 2
@@ -139,105 +143,66 @@ class Game(object):
     def get_active_player(self):
         return self.players[self.get_active_player_index()]
 
-    def announce_move(self):
-        """Announce over websockets that a move was made. It's then up to the
-        clients to request it, if they are interested."""
-        for socket in self.sockets:
-            socket.write_message("move")
-
-    def announce_chat(self):
-        """Announce over websockets that a chatmessage was sent."""
-        for socket in self.sockets:
-            socket.write_message("chat")
-
-    def announce_join(self):
-        """Announce over websockets that a player has joined the game."""
-        for socket in self.sockets:
-            socket.write_message("join")
-
     def add_player(self, user, handicap):
         """Add a white player to an existing game."""
         self.players[1] = user
         self.handicap = handicap
-        self.announce_join()
 
     def validate_move(self, move):
         """Try to make the move and calculate captures.
         Will raise errors if something goes wrong."""
         if not all(self.players):
-            raise NoOpponent
+            raise IllegalMove("No opponent in the game yet!")
         if move["player"] != self.get_active_player_index():
-            raise IllegalMove
+            raise IllegalMove("Wrong player!")
         return check_move(move, self.moves, self.size)
 
-    def make_move(self, time, position, player):
+    def make_move(self, time, position, player, validate=True):
         """Make a move."""
         if self.finished:
-            raise IllegalMove
+            raise IllegalMove("Game is already finished!")
+
+        if player not in self.players:
+            raise IllegalMove("Not a player in this game!")
 
         move = dict(player=self.players.index(player),
-                    position=tuple(position), time=time)
+                    position=tuple(position) if position else None,
+                    time=time,
+                    n=len(self.moves))
 
-        if position is not None:  # if it's not a pass
+        if validate and position is not None:  # if it's not a pass
             captures = self.validate_move(move)
             if captures:
-                #move["captures"] = captures
-                self.captures[self.players.index(player)][len(self.moves)] = \
-                    set(captures)
-                for i in captures:
-                    self.moves[i]["captured"] = True
-                #self.captures[self.players.index(player)] += len(captures)
-                print "Player '%s' captured %d stones!" % (player["name"],
+                move["captures"] = captures
+                print "Player '%s' captured %d stones!" % (player,
                                                            len(captures))
+        print "Valid move!"
         self.moves.append(move)
-        #self.captures[self.get_active_player_index()] += len(captures)
-        self.announce_move()
 
         #Check if the match is over (both players pass)
-        if (len(self.moves) >= 2 and
-                self.moves[-1]["position"] == self.moves[-2]["position"] == \
-                None):
-            self.finish()
+        if validate and len(self.moves) >= 2:
+            m1, m2 = self.moves[-2:]
+            print m1, m2
+            if m1["position"] is None and m2["position"] is None:
+                self.finish()
 
-    def finish():
+        return move
+
+    def finish(self):
         """End the game."""
+        print "Game finished!"
         self.finished = True
         # Calculate points, etc
 
-    def add_message(self, time, user, content):
-        """Send a chat message"""
-        self.messages.append({"time": time, "user": user, "content": content})
-        self.announce_chat()
-
-    # def get_board_string(self):
-    #     s = ""
-    #     n = 0
-    #     for row in self.board.positions:
-    #         for place in row:
-    #             if place:
-    #                 if self.players[0] in place:
-    #                     s += "b"
-    #                 elif self.players[1] in place:
-    #                     s += "w"
-    #             else:
-    #                 s += "."
-    #     return s
-
     def get_game_state(self):
-        state = {}
-        state["type"] = "state"
-        state["finished"] = self.finished
-        state["board_size"] = self.size
-        state["black"] = self.players[0]["name"]
-        state["white"] = self.players[1]["name"] if self.players[1] else None
-        state["active_player"] = ("b", "w")[self.get_active_player_index()]
-        if self.moves:
-            state["last_move"] = tuple(self.moves[-1]["position"])
-        else:
-            state["last_move"] = (-1, -1)
-        #state["board"] = self.get_board_string()
-        state["moves"] = self.get_moves()
-        #return ";".join([active_player, last_move, board])
+        state = {
+            "id": self.id,
+            "finished": self.finished,
+            "board_size": self.size,
+            "black": self.players[0],
+            "white": self.players[1],
+            "moves": self.get_moves()
+            }
         return state
 
     def get_moves(self, start=0):
@@ -248,9 +213,23 @@ class Game(object):
         res = []
         for i, m in enumerate(moves):
             move = dict(m)
-            move["n"] = start + i
-            move["captures"] = list(self.captures[m["player"]][start + i])
             res.append(move)
-        #res = [dict([("n", start + i)] + m.items())
-        #       for i, m in enumerate(moves)]
-        return res
+        return moves
+
+    def build_dbdict(self):
+        """Return a dict containing all info about the game, for storage"""
+        dbdict = self.get_game_state()
+        dbdict["_id"] = dbdict["id"]
+        dbdict["time"] = time.time()
+        del dbdict["id"]
+        print dbdict
+        return dbdict
+
+    def from_dbdict(self, dbdict):
+        """Restore a game object from a dbdict representation"""
+        self.id = dbdict["_id"]
+        self.players = [dbdict["black"], dbdict["white"]]
+        #self.handicap = dbdict["handicap"]
+        self.moves = dbdict["moves"]
+        self.finished = dbdict["finished"]
+        self.size = dbdict["board_size"]

@@ -1,9 +1,10 @@
 A small server for playing Go over the web!
 
-Requires the python module Tornado 2.2. 
+Requires python modules tornado (2.x) and pymongo. These can be installed
+by running "pip install tornado" and "pip install pymongo" if you have pip.
 
-Relies on websockets to update the board when a move is made, so it probably
-won't work in all browsers. Recent Firefox and Chrome versions work.
+Also requires MongoDB to be running. How to install and run this depends 
+on your OS.
 
-Run "python server.py" and point your web browser to http://localhost:8888 
+Run "python server.py" and point your web browser to http://localhost:8890 
 to try it.

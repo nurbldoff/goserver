@@ -6,24 +6,32 @@
 </head>
 <body>
 
+<a href="/game/new">Start a new game</a>
+
 <div id="gameListWrap">
-<ul>
-  {% for i, game in games.items() %}
-  <li>
-    <a href="{{ "/game/%d" % i }}">
-{% if not game.players[1] %}
-    {{ "%d: %s is waiting for an opponent." % (i, game.players[0]["name"]) }}
+
+{% if user is not None %}
+    <h3>Ongoing games where '{{ user }}' is playing:</h3>
 {% else %}
-    {{ "%d: %s vs %s (%d moves)" % (i, game.players[0]["name"],
-                game.players[1]["name"], len(game.moves)) }}
+    <h3>Ongoing games:</h3>
+{% end %}
+<ul>
+  {% for i, game in enumerate(games) %}
+  <li>
+    {{ "%s: (%dx%d)" % (
+    game["_id"], game["board_size"], game["board_size"]) }}
+    <a href="{{ '/game/%s' % game['_id'] }}">
+{% if not game["white"] %}
+    {{ "%s is waiting for an opponent." % game["black"] }}
+{% else %}
+    {{ "%s vs %s (%d moves)" % (game["black"],
+                game["white"], len(game["moves"])) }}
 {% end %}
     </a>
   </li>
   {% end %}
 </ul>
 </div>
-
-<a href="?new=game">Start a new game</a>
 
 </body>
 </html>
