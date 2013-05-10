@@ -1,19 +1,4 @@
 #!/usr/bin/env python
-#
-# Copyright 2009 Facebook
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License. You may obtain
-# a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
-
 
 import logging
 import time
@@ -74,7 +59,8 @@ class BaseHandler(tornado.web.RequestHandler):
 
     def get_current_user(self):
         user = self.get_secure_cookie("user")
-        if not user: return None
+        if not user:
+            return None
         return user   # tornado.escape.json_decode(user_json)
 
 
@@ -121,10 +107,11 @@ class GameMixin(object):
         """Adds a request to the waiting list for the given room"""
         cls = GameMixin
         print "Game cursor:", cursor
-        if cursor:
-            recent = db.get_game_moves(gameid, cursor)
+        if cursor is not None:
+            recent, cursor = db.get_game_moves(gameid, cursor)
+            print "recent:", recent, cursor
             if recent:
-                callback(recent)
+                callback([dict(moves=[move]) for move in recent], cursor)
                 return
         cls.waiters[gameid].add(callback)
 
@@ -132,14 +119,14 @@ class GameMixin(object):
         cls = GameMixin
         cls.waiters[gameid].remove(callback)
 
-    def new_updates(self, gameid, updates):
+    def new_updates(self, gameid, updates, cursor=None):
         """Send out updates to clients waiting on the given room"""
         cls = GameMixin
-        logging.info("Sending update on room '%s' to %d listeners" %
-                     (gameid, len(cls.waiters[gameid])))
+        logging.info("Sending update %s on room '%s' to %d listeners" %
+                     (updates, gameid, len(cls.waiters[gameid])))
         for callback in cls.waiters[gameid]:
             try:
-                callback(updates)
+                callback(updates, cursor)
             except:
                 logging.error("Error in waiter callback", exc_info=True)
         cls.waiters[gameid] = set()
@@ -218,26 +205,41 @@ class GameMoveHandler(BaseHandler, GameMixin):
         gameid = int(gameid)
         game = db.get_game(gameid)
         print "Move in game", game.id, "from player", self.current_user
+        print self.request.arguments
         position = self.get_argument("position")
+
         if position == "null":
             position = None
         else:
             position = [int(p) for p in position.split(",")]
+        resign = self.get_argument("resign", False) == "True"
+
         try:
             move = game.make_move(time=time.time(),
                                   position=position,
                                   player=self.current_user,
-                                  validate=True)
+                                  validate=True, resign=resign)
             db.update_game(game)
-            update = dict(move=move)
+            update = dict(moves=[move])
+            color = ["Black", "White"][move["player"]]
+            if position is None:
+                if resign:
+                    self.send_message(gameid, "%s (%s) resigned." %
+                                      (color, self.current_user))
+                else:
+                    self.send_message(gameid, "%s (%s) passed." %
+                                      (color, self.current_user))
+            else:
+                if move.get("captures"):
+                    caps = len(move["captures"])
+                    self.send_message(gameid, "%s (%s) captured %d stone%s." %
+                                      (color, self.current_user,
+                                       caps, "s" if caps > 1 else ""))
+
             if game.finished:
                 update["status"] = dict(finished=True)
                 self.send_message(gameid, "The game has ended!")
-            self.new_updates(gameid, [update])
-            if position is None:
-                self.send_message(gameid, "Player '%s' passed." %
-                                  self.current_user)
-                print "hejsan"
+            self.new_updates(gameid, [update], cursor=move["n"])
         except IllegalMove, e:
             print "Illegal Move:", e.message
             update = {"error": "Illegal Move:" + e.message}
@@ -266,15 +268,15 @@ class GameUpdatesHandler(BaseHandler, GameMixin):
     def post(self, game_id):
         game_id = int(game_id)
         self.game_id = game_id
-        cursor = self.get_argument("cursor", None)
+        cursor = self.get_argument("cursor")
         self.wait_for_updates(game_id, self.on_new_updates, cursor)
 
-    def on_new_updates(self, updates):
+    def on_new_updates(self, updates, cursor):
         # Closed client connection
         if self.request.connection.stream.closed():
             return
 
-        self.finish(dict(updates=updates))
+        self.finish(dict(updates=updates, cursor=cursor))
 
     def on_connection_close(self):
         self.cancel_wait(self.game_id, self.on_new_updates)

@@ -47,7 +47,9 @@ class Database(object):
         #game = self.get_game(gameid)
         search = {}
         search["_id"] = {"$gt": cursor}
-        return list(self.games.find({"_id": gameid, "moves": {"$gt": cursor}}))
+        result = list(self.games.find({"_id": gameid}, {"moves": 1}))
+        moves = result[0]["moves"]
+        return moves[int(cursor):], len(moves)
         #return game.find(search).sort("_id")
 
     def put_game_moves(self, gameid, moves):

@@ -1,17 +1,3 @@
-// Copyright 2009 FriendFeed
-//
-// Licensed under the Apache License, Version 2.0 (the "License"); you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
-
 var Go = Go || {};  // the main "namespace"
 
 $(document).ready(function() {
@@ -135,23 +121,24 @@ Go = {
         // Gets updates about game state; e.g. moves, joins, etc
 
         errorSleepTime: 500,
-        cursor: null,
+        cursor: 0,
 
         poll: function() {
             var args = {"_xsrf": Go.get_cookie("_xsrf")};
             //if (Go.game_updater.cursor) args.cursor = Go.game_updater.cursor;
-            args.cursor = Go.game.moves.length - 1;
+            args.cursor = Go.game.moves.length;
             $.ajax({url: "/game/" + Go.game.id + "/updates",
-                    type: "POST", dataType: "text",
-                    data: $.param(args), success: Go.game_updater.on_success,
-                    error: Go.game_updater.on_error});
+                    type: "POST",
+                    data: args, //{cursor: Go.game_updater.cursor},
+                    success: Go.game_updater.on_success})
+                .fail(Go.game_updater.on_error);
         },
 
         on_success: function(response) {
             // Callback for when the poll request gets a reply
             try {
                 console.log("response:", response);
-                Go.game_updater.new_updates(eval("(" + response + ")"));
+                Go.game_updater.new_updates(response);
             } catch (e) {
                 console.log("Why?", e);
                 Go.game_updater.on_error(response);
@@ -174,13 +161,14 @@ Go = {
         new_updates: function(response) {
             // What to do when game updates are received
             if (!response.updates) return;
-            console.log("game update:", response.updates);
-            var updates = response.updates;
-            Go.game.update(updates);
+            console.log("game update:", response);
+            Go.game.update(response.updates);
+            if (response.cursor != null) {
+                this.cursor = response.cursor;
+            }
             //this.cursor = updates[updates.length-1].id;
-        },
+        }
     },
-
 
     send_move: function(move_data) {
         // Send a new move to the server
@@ -295,8 +283,8 @@ Go.Game = Backbone.Model.extend({
     update: function (updates) {
         $.each(updates, function (index, update) {
             console.log("Game update:", update);
-            if (update.move) {
-                Go.game.moves.add(update.move);
+            if (update.moves) {
+                Go.game.moves.add(update.moves[0]);
             }
             if (update.join) {
                 Go.game.set("white", update.join.user);
@@ -373,6 +361,7 @@ Go.InfoView = Backbone.View.extend({
     el: $('#gameinfo'),
     events: {
         "click #passButton": "submit_pass",
+        "click #resignButton": "submit_resign"
     },
 
     initialize: function (model) {
@@ -406,6 +395,10 @@ Go.InfoView = Backbone.View.extend({
 
     submit_pass: function () {
         Go.send_move({position: null});
+    },
+
+    submit_resign: function () {
+        Go.send_move({position: null, resign: true});
     }
 
 });
