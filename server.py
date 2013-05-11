@@ -178,7 +178,7 @@ class GameHandler(BaseHandler, GameMixin):
             gamedict = game.get_game_state()
             messages = db.get_chat_messages(gameid, 0)
             gamedict["messages"] = messages
-            self.render("index.html", game_data=json_encode(gamedict))
+            self.render("index.html", gameid=gameid)
 
 
 class GameNewHandler(BaseHandler, GameMixin):
@@ -239,7 +239,7 @@ class GameMoveHandler(BaseHandler, GameMixin):
             if game.finished:
                 update["status"] = dict(finished=True)
                 self.send_message(gameid, "The game has ended!")
-            self.new_updates(gameid, [update], cursor=move["n"])
+            self.new_updates(gameid, [update], cursor=move["n"] + 1)
         except IllegalMove, e:
             print "Illegal Move:", e.message
             update = {"error": "Illegal Move:" + e.message}

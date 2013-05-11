@@ -216,7 +216,7 @@ class GTP_game:
 
     def __init__(self, command, serverurl, username, password,
                  size="19", komi="0", handicap=0,
-                 handicap_type="fixed", endgamefile="", pause=1.0):
+                 handicap_type="fixed", endgamefile="", pause=3.0):
 
         self.gtp_player = GTP_player(command)
         self.server_player = GoserverPlayer(serverurl, username, password)
