@@ -5,33 +5,63 @@
 
     <link rel="stylesheet" href="/static/css/toast/toast.css">
     <link rel="stylesheet" href="/static/css/layout.css">
-
-    <script src="/static/js/libs/angular.js"></script>
-    <script src="/static/js/libs/angular-resource.js"></script>
-    <script src="/static/js/libs/jquery-2.0-min.js"></script>
-    <script src="/static/js/libs/d3.min.js"></script>
-    <script src="/static/js/gogame.js"></script>
-    <script src="/static/js/board.js"></script>
+    <link rel="stylesheet" href="/static/css/game.css">
 
   </head>
 
   <body>
-    <div ng-controller="gameCtrl">
-      <input id="game-id" type="hidden" name="game-id" value="{{ gameid }}"/>
-      <div>
-        <div>
-          <goban-visualization id="board">
-                               <!-- moves="moves" move="current_move" -->
-                               <!-- make_move="make_move"> -->
 
-          </goban-visualization>
+    <input id="game-id" type="hidden" name="game-id" value="{{ gameid }}"/>
+    <input id="username" type="hidden" name="username" value="{{ username }}"/>
+    <div id="left-part">
+      <div id="dragbar"></div>
+
+      <div id="gobanwrap">
+        <div id="goban"></div>
+      </div>
+      <div data-bind="text: message"></div>
+
+    </div>
+
+    <div id="right-part">
+
+      <div id="game-info">
+        <div id="header">
+          <span data-bind="text: username"></span> |
+          <a href="/">All games</a> |
+          <a href="/logout">Logout<a>
         </div>
-        <div>
-          <input id="move_slider" type="range" min ="0" max="(( moves.length ))"
-                 ng-model="current_move"/>
-          (( current_move )) / (( moves.length ))
-        </div>
+
+        <table class="status">
+          <tr>
+            <td>
+              <div class="black player" data-bind="css: {active: turn() == 0}">
+                <span data-bind="text: black"></span>
+                (<span data-bind="text: captures()[0].length"></span>)
+              </div>
+            </td>
+          <td>
+            <div class="white player" data-bind="css: {active: turn() == 1}">
+                <span data-bind="text: white"></span>
+                (<span data-bind="text: captures()[1].length"></span>)
+            </div>
+          </td>
+          </tr>
+        </table>
+
+        <button data-bind="click: prev_move">←</button>
+        <button data-bind="click: next_move">→</button>
+        <input id="move_slider" type="range" min="0", max="10"
+               data-bind="value: current_move"/>
+        <span data-bind="text: current_move"></span> /
+        <span data-bind="text: moves().length"></span>
+        <input id="path_checkbox" type="checkbox" data-bind="checked: show_path"\>Show path
+
       </div>
     </div>
+
+    <script data-main="/static/js/gogame" src="/static/js/require.js"></script>
+
   </body>
+
 </html>

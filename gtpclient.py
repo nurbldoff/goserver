@@ -671,8 +671,8 @@ class GoserverPlayer(object):
                              urllib.urlencode({"position": "null",
                                                "resign": "true"}))
         result = json.loads(p.read())
-        if result.get("moves"):
-            self.cursor = int(result["moves"][0]["n"])+1
+        if result.get("move"):
+            self.cursor = int(result["move"]["n"])+1
         return result
 
     def pass_(self):
@@ -680,8 +680,8 @@ class GoserverPlayer(object):
                                           "game/%s/move" % self.game),
                              urllib.urlencode({"position": "null"}))
         result = json.loads(p.read())
-        if result.get("moves"):
-            self.cursor = int(result["moves"][0]["n"])+1
+        if result.get("move"):
+            self.cursor = int(result["move"]["n"])+1
         return result
 
     def move(self, move):
@@ -690,8 +690,8 @@ class GoserverPlayer(object):
                                           "game/%s/move" % self.game),
                              urllib.urlencode({"position": pos}))
         result = json.loads(p.read())
-        if result.get("moves"):
-            self.cursor = int(result["moves"][0]["n"])+1
+        if result.get("move"):
+            self.cursor = int(result["move"]["n"])+1
         return result
 
     def boardsize(self, _):
@@ -715,8 +715,8 @@ class GoserverPlayer(object):
             print "waiting for move"
             result = self.wait_for_updates()
             update = result["updates"][0]
-            if "moves" in update:
-                move = update["moves"][0]
+            if "move" in update:
+                move = update["move"]
                 self.cursor = result["cursor"]
                 break
         print move

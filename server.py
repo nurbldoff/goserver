@@ -1,5 +1,31 @@
 #!/usr/bin/env python
 
+"""
+A server to play Go over the web.
+
+Has a simple "REST" API for clients to communicate:
+
+* POST "/game/#" creates a new game with number # if it does not exist.
+  If it exists, but there is only one player in it, join it as white.
+  If the game already has two players, enter as a spectator.
+
+* POST "/game/#/updates" is used to watch a game for moves, by polling.
+  Send "cursor=N" as argument, where N is the number of the move you're
+  waiting for. If that move has not yet happened, wait. When one or more moves
+  have occurred since N, you'll immediately get them as JSON, like this:
+
+    {cursor: 8, updates: [{move: {position: "1,2", n=6}}, {move: {...}}, ...]}
+
+  ...where "cursor" is the new cursor to wait for.
+
+* POST "/game/#/move" is used to make moves in a game you're playing. As data,
+  send JSON on the format
+
+    {position: "4,5"}
+
+
+"""
+
 import logging
 import time
 import os.path
@@ -111,7 +137,7 @@ class GameMixin(object):
             recent, cursor = db.get_game_moves(gameid, cursor)
             print "recent:", recent, cursor
             if recent:
-                callback([dict(moves=[move]) for move in recent], cursor)
+                callback([dict(move=move) for move in recent], cursor)
                 return
         cls.waiters[gameid].add(callback)
 
@@ -178,7 +204,8 @@ class GameHandler(BaseHandler, GameMixin):
             gamedict = game.get_game_state()
             messages = db.get_chat_messages(gameid, 0)
             gamedict["messages"] = messages
-            self.render("index.html", gameid=gameid)
+            self.render("index.html", gameid=gameid,
+                        username=self.current_user)
 
 
 class GameNewHandler(BaseHandler, GameMixin):
@@ -220,7 +247,7 @@ class GameMoveHandler(BaseHandler, GameMixin):
                                   player=self.current_user,
                                   validate=True, resign=resign)
             db.update_game(game)
-            update = dict(moves=[move])
+            update = dict(move=move)
             color = ["Black", "White"][move["player"]]
             if position is None:
                 if resign:
@@ -257,7 +284,7 @@ class GameStateHandler(BaseHandler):
         game = db.get_game(game_id)
         if game:
             s = game.get_game_state()
-            self.finish(json_encode(s))
+            self.finish(s)
         else:
             return None
 
@@ -269,6 +296,7 @@ class GameUpdatesHandler(BaseHandler, GameMixin):
         game_id = int(game_id)
         self.game_id = game_id
         cursor = self.get_argument("cursor")
+        cursor = None if cursor == "null" else cursor
         self.wait_for_updates(game_id, self.on_new_updates, cursor)
 
     def on_new_updates(self, updates, cursor):
