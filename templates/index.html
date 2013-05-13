@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="/static/css/toast/toast.css">
     <link rel="stylesheet" href="/static/css/layout.css">
     <link rel="stylesheet" href="/static/css/game.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
 
   </head>
 
@@ -19,48 +20,72 @@
       <div id="gobanwrap">
         <div id="goban"></div>
       </div>
-      <div data-bind="text: message"></div>
 
     </div>
 
     <div id="right-part">
 
+      <div id="header">
+        {{ username }} |
+        <a href="/">All games</a> |
+        <a href="/logout">Logout<a>
+      </div>
+
       <div id="game-info">
-        <div id="header">
-          <span data-bind="text: username"></span> |
-          <a href="/">All games</a> |
-          <a href="/logout">Logout<a>
-        </div>
 
         <table class="status">
           <tr>
             <td>
               <div class="black player" data-bind="css: {active: turn() == 0}">
-                <span data-bind="text: black"></span>
+                <span data-bind="text: black, css: {playing: black() == username}"></span>
                 (<span data-bind="text: captures()[0].length"></span>)
               </div>
             </td>
           <td>
             <div class="white player" data-bind="css: {active: turn() == 1}">
-                <span data-bind="text: white"></span>
+                <span data-bind="text: white, css: {playing: white() == username}"></span>
                 (<span data-bind="text: captures()[1].length"></span>)
             </div>
           </td>
           </tr>
         </table>
 
-        <button data-bind="click: prev_move">←</button>
-        <button data-bind="click: next_move">→</button>
-        <input id="move_slider" type="range" min="0", max="10"
-               data-bind="value: current_move"/>
-        <span data-bind="text: current_move"></span> /
-        <span data-bind="text: moves().length"></span>
-        <input id="path_checkbox" type="checkbox" data-bind="checked: show_path"\>Show path
+        <div>
+          <button data-bind="click: prev_move">←</button>
+          <button data-bind="click: next_move">→</button>
+          <input id="move_slider" type="range" min="0", max="10"
+                 data-bind="value: current_move"/>
+          <span data-bind="text: current_move"></span> /
+          <span data-bind="text: moves().length"></span>
+          <input id="path_checkbox" type="checkbox" data-bind="checked: show_path"\>Show path
+        </div>
+        <div id="game-actions">
+          <span id="error" data-bind="text: error"></span>
+          <button data-bind="click: pass, enable: playing"> Pass </button>
+          <button data-bind="click: resign, enable: playing"> Resign </button>
+        </div>
 
       </div>
+
+      <div id="chat">
+
+        <div id="messages" data-bind="foreach: messages">
+            <div class="message">
+              <span class="username" data-bind="text: user"></span>
+              <span class="body" data-bind="text: body"></span>
+              <!-- <span class="timestamp" data-bind="text: time"></span> -->
+            </div>
+        </div>
+
+        <form data-bind="submit: send_message">
+          <input id="new-message" type="text" data-bind="value: new_message">
+        </form>
+
+      </div>
+
     </div>
 
-    <script data-main="/static/js/gogame" src="/static/js/require.js"></script>
+    <script data-main="/static/js/main" src="/static/js/require.js"></script>
 
   </body>
 

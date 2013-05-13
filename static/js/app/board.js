@@ -49,9 +49,9 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
             .data(xaxiscoorddata)
             .enter().append("svg:line")
             .attr("x1", function(d){return 0.5 + Math.round(d);})
-            .attr("y1", Math.floor(spacing/2))
+            .attr("y1", 0.5 + Math.round(spacing/2))
             .attr("x2", function(d){return 0.5 + Math.round(d);})
-            .attr("y2", Math.ceil(1 + self.height - spacing/2))
+            .attr("y2", 0.5 + Math.round(self.height - spacing/2))
             .style("stroke", "rgb(0,0,0)")
             .style("stroke-width", 1.0);
 
@@ -59,9 +59,9 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
         board.selectAll("line.horizontal")
             .data(yaxiscoorddata)
             .enter().append("svg:line")
-            .attr("x1", Math.floor(spacing/2))
+            .attr("x1", 0.5 + Math.round(spacing/2))
             .attr("y1", function(d){return 0.5 + Math.round(d);})
-            .attr("x2", Math.ceil(1 + self.width - spacing/2))
+            .attr("x2", 0.5 + Math.round(self.width - spacing/2))
             .attr("y2", function(d){return 0.5 + Math.round(d);})
             .style("stroke", "rgb(0,0,0)")
             .style("stroke-width", 1.0);
@@ -88,8 +88,8 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
         // height=130% so that the shadow is not clipped
         var filter = defs.append("filter")
                 .attr("id", "drop-shadow")
-                .attr("height", "120%")
-                .attr("width", "120%");
+                .attr("height", "150%")
+                .attr("width", "150%");
         // .append("feColorMatrix")
         // .attr("type", "matrix")
         // .attr("values", "0 0 0 0   0 " +
@@ -196,8 +196,16 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
             var last_move = moves.slice(-1)[0];
             stones.style("stroke", null)
                 .on("mouseover", function () {
-                    console.log(d3.select(this).text());
+                    var stone = d3.select(this);
+                    console.log(stone.text());
+                    stone.attr("r", stone.attr("r") * 1.1);
+                })
+                .on("mouseout", function () {
+                    var stone = d3.select(this);
+                    console.log(stone.text());
+                    stone.attr("depth", 10).attr("r", stone.attr("r") / 1.1);
                 });
+
 
             // Update stones
             stones.enter().append("circle")

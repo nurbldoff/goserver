@@ -45,8 +45,8 @@ class Database(object):
         """ Return all messages starting with 'start_id', optionally
         for a given room. """
         #game = self.get_game(gameid)
-        search = {}
-        search["_id"] = {"$gt": cursor}
+        #search = {}
+        #search["_id"] = {"$gt": cursor}
         result = list(self.games.find({"_id": gameid}, {"moves": 1}))
         moves = result[0]["moves"]
         return moves[int(cursor):], len(moves)
@@ -74,7 +74,7 @@ class Database(object):
     def get_chat_messages(self, room, cursor):
         """ Return all messages starting with cursor, for a given room."""
         search = {}
-        search["_id"] = {"$gt": cursor}
+        search["_id"] = {"$gt": int(cursor)}
         if room is not None:
             search["room"] = room
         return list(self.messages.find(search).sort("_id"))

@@ -98,11 +98,12 @@ class ChatMixin(object):
     def wait_for_updates(self, room, callback, cursor=None):
         """Adds a request to the waiting list for the given room"""
         cls = ChatMixin
-        print "Message cursor:", cursor
+        print "Message cursor:", cursor, "room:", room
         if cursor:
             recent = db.get_chat_messages(room, cursor)
             if recent:
-                callback(recent)
+                print "recent messages", recent
+                callback(dict(updates=recent, cursor=recent[-1]["_id"]))
                 return
         cls.waiters[room].add(callback)
 
@@ -110,14 +111,14 @@ class ChatMixin(object):
         cls = ChatMixin
         cls.waiters[room].remove(callback)
 
-    def new_updates(self, room, updates):
+    def new_updates(self, room, updates, cursor=None):
         """Send out updates to clients waiting on the given room"""
         cls = ChatMixin
         logging.info("Sending update on room '%s' to %d listeners" %
                      (room, len(cls.waiters[room])))
         for callback in cls.waiters[room]:
             try:
-                callback(updates)
+                callback(dict(updates=updates, cursor=cursor))
             except:
                 logging.error("Error in waiter callback", exc_info=True)
         cls.waiters[room] = set()
@@ -135,7 +136,7 @@ class GameMixin(object):
         print "Game cursor:", cursor
         if cursor is not None:
             recent, cursor = db.get_game_moves(gameid, cursor)
-            print "recent:", recent, cursor
+            #print "recent:", recent, cursor
             if recent:
                 callback([dict(move=move) for move in recent], cursor)
                 return
@@ -170,7 +171,7 @@ class GameMixin(object):
 
     def send_message(self, gameid, body, user="[SERVER]"):
         ChatMixin().new_updates(gameid, [dict(user=user, time=time.time(),
-                                             body=body)])
+                                              body=body)])
 
 
 class GameListHandler(BaseHandler, GameMixin):
@@ -239,7 +240,7 @@ class GameMoveHandler(BaseHandler, GameMixin):
             position = None
         else:
             position = [int(p) for p in position.split(",")]
-        resign = self.get_argument("resign", False) == "True"
+        resign = self.get_argument("resign", False).lower() == "true"
 
         try:
             move = game.make_move(time=time.time(),
@@ -326,7 +327,7 @@ class MessageNewHandler(BaseHandler, ChatMixin):
             self.redirect(self.get_argument("next"))
         else:
             self.write(update)
-        self.new_updates(gameid, [update])
+        self.new_updates(gameid, [update], update["id"])
 
 
 class MessageUpdatesHandler(BaseHandler, ChatMixin):
@@ -335,7 +336,7 @@ class MessageUpdatesHandler(BaseHandler, ChatMixin):
     def post(self, room):
         room = int(room)
         self.room = room
-        cursor = self.get_argument("cursor", None)
+        cursor = self.get_argument("cursor", 0)
         self.wait_for_updates(room, self.on_new_updates, cursor)
 
     def on_new_updates(self, updates):
@@ -343,7 +344,7 @@ class MessageUpdatesHandler(BaseHandler, ChatMixin):
         if self.request.connection.stream.closed():
             return
 
-        self.finish(dict(updates=updates))
+        self.finish(updates)
 
     def on_connection_close(self):
         self.cancel_wait(self.room, self.on_new_updates)
