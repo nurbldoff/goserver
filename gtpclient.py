@@ -608,20 +608,26 @@ class GoserverPlayer(object):
 
 
 if __name__ == "__main__":
-    import argparse
+    from optparse import OptionParser
 
-    parser = argparse.ArgumentParser(
-        description='GTP client runner for GoServer.')
-    parser.add_argument('command', type=str, help="client commandline")
-    parser.add_argument('url', type=str, help="URL to the server")
-    parser.add_argument('--name', type=str, help="login username")
-    parser.add_argument('--password', type=str, help="login password",
-                        default="")
-    parser.add_argument('--verbose', type=int, default=0)
+    parser = OptionParser()
+    parser.add_option("-n", "--name", dest="name")
+    parser.add_option("-p", "--password", dest="password")
+    parser.add_option("-v", "--verbose", dest="verbose", default=False)
 
-    args = parser.parse_args()
-    print args
+    (options, (command, url)) = parser.parse_args()
 
-    verbose = args.verbose
-    game = GTP_game(args.command, args.url, args.name, args.password)
+    # parser = argparse.ArgumentParser(
+    #     description='GTP client runner for GoServer.')
+    # parser.add_argument('command', type=str, help="client commandline")
+    # parser.add_argument('url', type=str, help="URL to the server")
+    # parser.add_argument('--name', type=str, help="login username")
+    # parser.add_argument('--password', type=str, help="login password",
+    #                     default="")
+    # parser.add_argument('--verbose', type=int, default=0)
+
+    # args = parser.parse_args()
+
+    verbose = options.verbose
+    game = GTP_game(command, url, options.name, options.password)
     game.play("")
