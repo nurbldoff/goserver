@@ -20,7 +20,7 @@ define( ['knockout-2.2.1'], function (ko) {
             $.ajax({url: "/room/" + roomid + "/updates", type: "POST",
                     data: {cursor: self.cursor}, timeout: timeout,
                     success: function (data) {self._update(data);
-                                              self.poll(self.default_timeout);},
+                                              self.poll(timeout * 2);},
                     error: function () {
                         window.setTimeout(function() {self.poll(timeout * 2);},
                                           500);}});
@@ -30,9 +30,7 @@ define( ['knockout-2.2.1'], function (ko) {
             console.log(data.updates);
             var updates = data.updates;
             for (var i in updates) {
-                self.messages.push({user: updates[i].user,
-                                    body: updates[i].body,
-                                    time: updates[i].time});
+                self.messages.push(updates[i]);
             }
             console.log(self.messages());
             self.new_message("");

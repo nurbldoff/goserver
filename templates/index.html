@@ -27,6 +27,7 @@
 
       <div id="header">
         {{ username }} |
+        <a href="/?user={{ username }}">My games</a> |
         <a href="/">All games</a> |
         <a href="/logout">Logout<a>
       </div>
@@ -37,13 +38,15 @@
           <tr>
             <td>
               <div class="black player" data-bind="css: {active: turn() == 0}">
-                <span data-bind="text: black, css: {playing: black() == username}"></span>
+                <span data-bind="text: black,
+                                 css: {playing: (black() == username) && !finished()}"></span>
                 (<span data-bind="text: captures()[0].length"></span>)
               </div>
             </td>
           <td>
             <div class="white player" data-bind="css: {active: turn() == 1}">
-                <span data-bind="text: white, css: {playing: white() == username}"></span>
+                <span data-bind="text: white,
+                                 css: {playing: (white() == username) && !finished()}"></span>
                 (<span data-bind="text: captures()[1].length"></span>)
             </div>
           </td>

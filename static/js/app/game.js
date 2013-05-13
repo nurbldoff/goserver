@@ -14,6 +14,8 @@ define(['knockout-2.2.1', 'd3', 'app/board'], function (ko, d3, GoBoard) {
         self.white = ko.observable();
         self.turn = ko.observable(0);
 
+        self.finished = ko.observable(false);
+
         self.playing = ko.computed(function () {
             return self.username == self.black() || self.username == self.white();
         });
@@ -95,11 +97,14 @@ define(['knockout-2.2.1', 'd3', 'app/board'], function (ko, d3, GoBoard) {
 
         self._update = function (data) {
             var updates = data.updates;
+            console.log(updates);
             for (var i in updates) {
                 if (updates[i].move) {
                     var move = updates[i].move;
                     self.moves.push(move);
                     self.update_turn(move.player);
+                    if (move.finished)
+                        self.finished(true);
                 }
                 if (updates[i].join) {
                     var user = updates[i].join.user;

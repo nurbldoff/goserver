@@ -1,17 +1,24 @@
 <html>
 <head>
 
-<link rel="stylesheet" type="text/css" href="{{ static_url("main.css") }}" />
+<link rel="stylesheet" type="text/css" href="{{ static_url('css/game_list.css') }}" />
 
 </head>
 <body>
 
 <a href="/game/new">Start a new game</a>
 
+<div id="header">
+  {{ username }} |
+  <a href="/?user={{ username }}">My games</a> |
+  <a href="/">All games</a> |
+  <a href="/logout">Logout<a>
+</div>
+
 <div id="gameListWrap">
 
-{% if user is not None %}
-    <h3>Ongoing games where '{{ user }}' is playing:</h3>
+{% if username is not None %}
+    <h3>Ongoing games where '{{ username }}' is playing:</h3>
 {% else %}
     <h3>Ongoing games:</h3>
 {% end %}

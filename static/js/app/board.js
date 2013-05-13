@@ -164,7 +164,7 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
                 .y(function(m) { return coord(m.position[1]); })
                 .interpolate("cardinal");
         var path = board.append("path")
-                .style("stroke", "blue")
+                .style("stroke", "rgba(0,100,255,0.7)")
                 .style("stroke-width", 2)
                 .style("fill", "none");
 

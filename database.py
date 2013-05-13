@@ -39,14 +39,16 @@ class Database(object):
     def update_game(self, game, fields=None):
         gdict = game.build_dbdict()
         #update = dict([(k, gdict.get(k)) for k in fields])
-        self.games.save(gdict)  # do a partial update instead?
+        self.games.save(gdict)  # do a partial update instead!
 
     def get_game_moves(self, gameid, cursor):
         """ Return all messages starting with 'start_id', optionally
         for a given room. """
         #game = self.get_game(gameid)
-        #search = {}
-        #search["_id"] = {"$gt": cursor}
+        # search = {}
+        # search["_id"] = {"$gt": cursor}
+
+        # This is pretty inefficient too..
         result = list(self.games.find({"_id": gameid}, {"moves": 1}))
         moves = result[0]["moves"]
         return moves[int(cursor):], len(moves)

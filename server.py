@@ -5,31 +5,68 @@ A server to play Go over the web.
 
 Has a simple "REST" API for clients to communicate:
 
-* POST "/game/#" creates a new game with number # if it does not exist.
-  If it exists, but there is only one player in it, join it as white.
-  If the game already has two players, enter as a spectator.
+* POST "/login" to log in, with JSON data:
 
-* POST "/game/#/updates" is used to watch a game for moves, by polling.
-  Send "cursor=N" as argument, where N is the number of the move you're
-  waiting for. If that move has not yet happened, wait. When one or more moves
-  have occurred since N, you'll immediately get them as JSON, like this:
+    {"username": "some_user", "password": "some_pass"}
 
-    {cursor: 8, updates: [{move: {position: "1,2", n=6}}, {move: {...}}, ...]}
+  Sets a cookie to keep the player logged in. Users are created on
+  first login. Currently does no check on the password; it can be
+  anything.
 
-  ...where "cursor" is the new cursor to wait for.
-
-* POST "/game/#/move" is used to make moves in a game you're playing. As data,
-  send JSON on the format
-
-    {position: "4,5"}
+* GET "/logout" to log out.
 
 
+* POST "/game/new" creates a new game, and redirects the client to it.
+
+* POST "/game/123" enters the game with number 123, if it exists.
+  If there is only one player in the game, join it as white.
+  If the game already has two players, enter as a passive spectator.
+
+* POST "/game/123/updates" is used to watch a game for moves, by
+  polling. Send "cursor=N" as argument, where N is the number of the
+  move you're waiting for (e.g. 0 at the start). If that move has not
+  yet happened, wait. If one or more moves have occurred since N,
+  you'll immediately get them as JSON, like this:
+
+    {"cursor": 8, "updates": [{"move": {"position": "1,2", "n"=6}},
+                              {"move": {...}}, ...]}
+
+  ...where "cursor" is the new cursor to wait for, and so on.
+
+  "n" is the number of the move, starting with 0.
+  A "resign" is indicated by the presence of "resign=true" in the move object.
+  A "pass" is indicated by a position of "null", or no position.
+
+* POST "/game/123/move" is used to make moves in a game you're playing.
+  As data, send JSON on the format:
+
+    {"position": "4,5", "resign": false}
+
+  Both fields are optional.
+
+
+* POST "/room/123/message" to send a chat message to the room associated with
+  game 123, on the form:
+
+    {"body": "This is a message."}
+
+* POST "/room/123/updates" to watch the room for chat messages. Works like
+  watching a game, except updates are on the form:
+
+    {"user": "some_user", "body": "Blabla...", "time": 123456.7890}
+
+  "time" is given as epoch.
+
+
+Note: Polling is sort of primitive, but it's simple and universally
+supported. Take care not to hammer the service with updates requests;
+keep timeouts fairly long and, preferably, increase them if there are
+no updates.
 """
 
 import logging
 import time
 import os.path
-import uuid
 from collections import defaultdict
 
 import tornado.auth
@@ -38,7 +75,6 @@ import tornado.ioloop
 import tornado.options
 import tornado.web
 from tornado.options import define, options
-from tornado.escape import json_encode
 
 from game import Game, IllegalMove
 from database import Database
@@ -59,7 +95,6 @@ class Application(tornado.web.Application):
             (r"/game/([0-9]+)", GameHandler, args),
             #(r"/auth/login", AuthLoginHandler),
             #(r"/auth/logout", AuthLogoutHandler),
-            #(r"/game/([0-9]+)", GameHandler, args),
             (r"/room/([0-9]+)/message", MessageNewHandler, args),
             (r"/room/([0-9]+)/updates", MessageUpdatesHandler, args),
             (r"/game/([0-9]+)/updates", GameUpdatesHandler, args),
@@ -136,7 +171,7 @@ class GameMixin(object):
         print "Game cursor:", cursor
         if cursor is not None:
             recent, cursor = db.get_game_moves(gameid, cursor)
-            #print "recent:", recent, cursor
+            print "recent:", recent, cursor
             if recent:
                 callback([dict(move=move) for move in recent], cursor)
                 return
@@ -178,9 +213,11 @@ class GameListHandler(BaseHandler, GameMixin):
     @tornado.web.authenticated
     def get(self):
         user = self.get_argument("user", None)
+        print "user:", user
         games = db.get_games(user=user)
         #games.sort(key=lambda x: x.get("time", 0), reverse=True)
-        self.render("game_list.html", games=games, user=user)
+        self.render("game_list.html", games=games,
+                    username=self.current_user)
 
 
 class GameHandler(BaseHandler, GameMixin):
@@ -240,7 +277,10 @@ class GameMoveHandler(BaseHandler, GameMixin):
             position = None
         else:
             position = [int(p) for p in position.split(",")]
-        resign = self.get_argument("resign", False).lower() == "true"
+        resign = self.get_argument("resign", False)
+        # TODO: This stuff should be unnecessary; figure out why it isn't
+        if isinstance(resign, str):
+            resign = resign.tolower() == "true"
 
         try:
             move = game.make_move(time=time.time(),

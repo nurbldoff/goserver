@@ -1,31 +1,5 @@
 #! /usr/bin/env python
 
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# This program is distributed with GNU Go, a Go program.            #
-#                                                                   #
-# Write gnugo@gnu.org or see http://www.gnu.org/software/gnugo/     #
-# for more information.                                             #
-#                                                                   #
-# Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 and 2007 #
-# by the Free Software Foundation.                                  #
-#                                                                   #
-# This program is free software; you can redistribute it and/or     #
-# modify it under the terms of the GNU General Public License       #
-# as published by the Free Software Foundation - version 3,         #
-# or (at your option) any later version.                            #
-#                                                                   #
-# This program is distributed in the hope that it will be           #
-# useful, but WITHOUT ANY WARRANTY; without even the implied        #
-# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR           #
-# PURPOSE.  See the GNU General Public License in file COPYING      #
-# for more details.                                                 #
-#                                                                   #
-# You should have received a copy of the GNU General Public         #
-# License along with this program; if not, write to the Free        #
-# Software Foundation, Inc., 51 Franklin Street, Fifth Floor,       #
-# Boston, MA 02111, USA.                                            #
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
 from getopt import *
 import popen2
 import sys
@@ -373,7 +347,6 @@ class GTP_game:
         won_by_resignation = ""
         dt = 0.2
         while passes < 2:
-            time.sleep(self.pause)
             t0 = time.time()
             if to_play == "B":
                 move = self.blackplayer.genmove("black")
@@ -429,6 +402,8 @@ class GTP_game:
             if verbose >= 2:
                 print self.gtp_player.showboard() + "\n"
             dt = time.time() - t0
+            if passes < 2:
+                time.sleep(self.pause)
 
         if won_by_resignation == "":
             self.result = self.gtp_player.final_score()
@@ -443,7 +418,7 @@ class GTP_game:
             self.result = won_by_resignation
             winner, _ = self.result.split("+")
             winner = "white" if winner == "W" else "black"
-            self.server_player.say("I %s won by resignation!" % winner)
+            self.server_player.say("I think %s won by resignation!" % winner)
         print "Result:", self.result
     #    if self.resultb == self.resultw:
     #        print "Result: ", self.resultw
@@ -467,130 +442,6 @@ class GTP_game:
         self.blackplayer.quit()
         self.whiteplayer.quit()
 
-
-class GTP_match:
-
-    # Class members:
-    #    black
-    #    white
-    #    size
-    #    komi
-    #    handicap
-    #    handicap_type
-
-    def __init__(self, whitecommand, blackcommand, size, komi, handicap,
-                 handicap_type, streak_length, endgamefilelist):
-        self.white = whitecommand
-        self.black = blackcommand
-        self.size = size
-        self.komi = komi
-        self.handicap = handicap
-        self.handicap_type = handicap_type
-        self.streak_length = streak_length
-        self.endgamefilelist = endgamefilelist
-
-    def endgame_contest(self, sgfbase):
-        results = []
-        i = 1
-        for endgamefile in self.endgamefilelist:
-            game1 = GTP_game(self.white, self.black, self.size, self.komi,
-                             0, "", endgamefile)
-            game2 = GTP_game(self.black, self.white, self.size, self.komi,
-                             0, "", endgamefile)
-            if verbose:
-                print "Replaying", endgamefile
-                print "Black:", self.black
-                print "White:", self.white
-            game1.play("")
-            result1 = game1.result()[0]
-            if result1 != "0":
-                plain_result1 = re.search(r"([BW]\+)([0-9]*\.[0-9]*)", result1)
-                result1_float = float(plain_result1.group(2))
-            else:
-                plain_result1 = re.search(r"(0)", "0")
-                result1_float = 0.0
-            if result1[0] == "B":
-                result1_float *= -1
-            if verbose:
-                print "Result:", result1
-                print "Replaying", endgamefile
-                print "Black:", self.white
-                print "White:", self.black
-            game2.play("")
-            result2 = game2.result()[1]
-            if verbose:
-                print "Result:", result2
-            if result2 != "0":
-                plain_result2 = re.search(r"([BW]\+)([0-9]*\.[0-9]*)", result2)
-                result2_float = float(plain_result2.group(2))
-            else:
-                plain_result2 = re.search(r"(0)", "0")
-                result2_float = 0.0
-
-            if result2[0] == "B":
-                result2_float *= -1
-            results.append(result1_float - result2_float)
-            if (result1 != result2):
-                print endgamefile+ ":", plain_result1.group(), \
-                    plain_result2.group(), "Difference:",
-                print result1_float - result2_float
-            else:
-                print endgamefile+": Same result:", plain_result1.group()
-            sgffilename = "%s%03d" % (sgfbase, i)
-            game1.writesgf(sgffilename + "_1.sgf")
-            game2.writesgf(sgffilename + "_2.sgf")
-            game1.quit()
-            game2.quit()
-            i += 1
-        return results
-
-    def play(self, games, sgfbase):
-        last_color = ""
-        last_streak = 0
-        game = GTP_game(self.white, self.black,
-                        self.size, self.komi, self.handicap,
-                        self.handicap_type, "")
-        results = []
-        for i in range(games):
-            sgffilename = "%s%03d.sgf" % (sgfbase, i + 1)
-            game.play(sgffilename)
-            result = game.result()
-            if result[0] == result[1]:
-                print "Game %d: %s" % (i + 1, result[0])
-            else:
-                print "Game %d: %s %s" % (i + 1, result[0], result[1])
-
-            if result[0][0] == last_color:
-                last_streak += 1
-            elif result[0][0] != "0":
-                last_color = result[0][0]
-                last_streak = 1
-
-            if last_streak == self.streak_length:
-                if last_color == "W":
-                    self.handicap += 1
-                    if self.handicap == 1:
-                        self.handicap = 2
-                    print "White wins too often. Increasing handicap to %d" \
-                          % (self.handicap)
-                else:
-                    if self.handicap > 0:
-                        self.handicap -= 1
-                        if self.handicap == 1:
-                            self.handicap = 0
-                        print "Black wins too often. Decreasing handicap to %d" \
-                              % (self.handicap)
-                    else:
-                        self.handicap = 2
-                        game.swap_players()
-                        print "Black looks stronger than white. Swapping colors and setting handicap to 2"
-                game.set_handicap(self.handicap)
-                last_color = ""
-                last_streak = 0
-            results.append(result)
-        cputime = game.cputime()
-        game.quit()
-        return results, cputime
 
 
 # ================================================================
@@ -723,7 +574,7 @@ class GoserverPlayer(object):
         if move["position"]:
             return self.coord_to_vertex(move["position"])
         else:
-            if move["resign"]:
+            if move.get("resign"):
                 return "resign"
             else:
                 return "pass"
