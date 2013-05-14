@@ -617,17 +617,6 @@ if __name__ == "__main__":
 
     (options, (command, url)) = parser.parse_args()
 
-    # parser = argparse.ArgumentParser(
-    #     description='GTP client runner for GoServer.')
-    # parser.add_argument('command', type=str, help="client commandline")
-    # parser.add_argument('url', type=str, help="URL to the server")
-    # parser.add_argument('--name', type=str, help="login username")
-    # parser.add_argument('--password', type=str, help="login password",
-    #                     default="")
-    # parser.add_argument('--verbose', type=int, default=0)
-
-    # args = parser.parse_args()
-
     verbose = options.verbose
     game = GTP_game(command, url, options.name, options.password)
     game.play("")
