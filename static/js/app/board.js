@@ -2,69 +2,35 @@
 
 define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
 
-    return function (model, element, size) {
-
-        var self = this;
-
-        self.resize = function () {
-            var width = $(element).width();
-            board.attr("width", width)
-                .attr("height", width);
-            self.width = self.height = width;
-        };
-
-        // FIXME: This isn't very nice, we don't redraw the board just clip it.
-        $(window).on("resize", self.resize);
-
-        self.element = d3.select(element);
-        var board = self.element.append("svg:svg")
-                .attr("id", "board")
-                .attr("viewbox", "0 0 100 100")
-                .attr("preserveAspectRatio", "xMidYMid meet");
-        self.resize();
-        var margin = 0,
-            spacing = self.width / size;
-
-        self.board = board;
-
-        var coord = function (pos) {
-            return 0.5 + Math.round(pos * spacing + spacing/2);
-        };
-
+    var draw_board = function (board, coord) {
         board.append("svg:image")
             .attr("xlink:href", "/static/images/goban_whole4_small.jpg")
             .attr("x", "0")
             .attr("y", "0")
-            .attr("width", self.width)
-            .attr("height", self.height);
+            .attr("width", "100%")
+            .attr("height", "100%");
 
-        // the yaxiscoorddata gives the y coordinates for horizontal lines
-        var yaxiscoorddata = d3.range(spacing/2, self.height, spacing);
+        // the axiscoorddata gives the y coordinates for horizontal lines
+        var axiscoorddata = d3.range(0, 19, 1);
 
-        // the xaxiscoorddata gives the x coordinates for vertical lines
-        var xaxiscoorddata = d3.range(spacing/2, self.width, spacing);
-
-        // Using the xaxiscoorddata to generate vertical lines.
+        // Using the axiscoorddata to generate vertical lines.
         board.selectAll("line.vertical")
-            .data(xaxiscoorddata)
+            .data(axiscoorddata)
             .enter().append("svg:line")
-            .attr("x1", function(d){return 0.5 + Math.round(d);})
-            .attr("y1", 0.5 + Math.round(spacing/2))
-            .attr("x2", function(d){return 0.5 + Math.round(d);})
-            .attr("y2", 0.5 + Math.round(self.height - spacing/2))
-            .style("stroke", "rgb(0,0,0)")
-            .style("stroke-width", 1.0);
+            .attr("x1", coord)
+            .attr("y1", coord(0))
+            .attr("x2", coord)
+            .attr("y2", coord(18))
+            .style("stroke", "black");
 
-        // Using the yaxiscoorddata to generate horizontal lines.
         board.selectAll("line.horizontal")
-            .data(yaxiscoorddata)
+            .data(axiscoorddata)
             .enter().append("svg:line")
-            .attr("x1", 0.5 + Math.round(spacing/2))
-            .attr("y1", function(d){return 0.5 + Math.round(d);})
-            .attr("x2", 0.5 + Math.round(self.width - spacing/2))
-            .attr("y2", function(d){return 0.5 + Math.round(d);})
-            .style("stroke", "rgb(0,0,0)")
-            .style("stroke-width", 1.0);
+            .attr("x1", coord(0))
+            .attr("y1", coord)
+            .attr("x2", coord(18))
+            .attr("y2", coord)
+            .style("stroke", "black");
 
         // Draw the dots
         board.selectAll("circle")
@@ -72,24 +38,19 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
                    [3, 9],  [9, 9],  [15, 9],
                    [3, 15], [9, 15], [15, 15]]).enter()
             .append("circle").attr("fill", "black")
-            .attr("r", spacing/15)
+            .attr("r", 2)
             .attr("cx", function (d) {return coord(d[0]);})
             .attr("cy", function (d) {return coord(d[1]);});
+    };
 
-        // board.on("click", function () {
-        //     var pos = [Math.floor(d3.event.x / (width/size)),
-        //                Math.floor(d3.event.y / (height/size))];
-        //     scope.make_move(pos);
-        // });
+    var create_shadows = function (defs, spacing) {
 
-        var stonegroup = board.append("g");
-        var defs = board.append("svg:defs");
         // create filter with id #drop-shadow
         // height=130% so that the shadow is not clipped
         var filter = defs.append("filter")
-                .attr("id", "drop-shadow")
-                .attr("height", "150%")
-                .attr("width", "150%");
+                .attr("id", "drop-shadow");
+                // .attr("height", "100")
+                // .attr("width", "100");
         // .append("feColorMatrix")
         // .attr("type", "matrix")
         // .attr("values", "0 0 0 0   0 " +
@@ -98,22 +59,21 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
         //                 "0 0 0 0.5 0")
 
         // SourceAlpha refers to opacity of graphic that this filter will be applied to
-        // convolve that with a Gaussian and store result in blur
+        // convolve that with a Gaussian
         filter.append("feGaussianBlur")
             .attr("in", "SourceAlpha")
-            .attr("stdDeviation", spacing/15)
-            .attr("result", "shadow");
+            .attr("stdDeviation", spacing/15);
+            //.attr("result", "shadow");
 
         // translate output of Gaussian blur to the right and downwards
-        // store result in offsetBlur
         filter.append("feOffset")
-            .attr("in", "shadow")
+            //.attr("in", "shadow")
             .attr("dx", spacing/20)
             .attr("dy", spacing/10);
 
         // Set the alpha of the shadows
         filter.append("feComponentTransfer")
-            .attr("result", "alphaShadow")
+            .attr("result", "shadow")
             .append("feFuncA")
             .attr("type", "linear")
             .attr("slope", 0.6);
@@ -121,14 +81,13 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
         // Merge the stones and the shadows
         var feMerge = filter.append("feMerge");
         feMerge.append("feMergeNode")
-            .attr("in", "alphaShadow");
+            .attr("in", "shadow");
         feMerge.append("feMergeNode")
             .attr("in", "SourceGraphic");
 
-        // The shadow must be added to the group of stones as a whole, because it
-        // must be drawn beneath all of them
-        stonegroup.style("filter", "url(#drop-shadow)");
+    };
 
+    var create_gradients = function (defs) {
         // Gradient definitions
         var whitegradient = defs.append("svg:radialGradient")
                 .attr("id", "whitegradient")
@@ -157,27 +116,88 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
         blackgradient.append("svg:stop")
             .attr("offset", "100%")
             .attr("stop-color", "#000");
+    };
+
+
+    return function (model, element, size) {
+
+        var self = this;
+
+        self.resize = function () {
+            var width = $(element).width();
+            board.attr("width", width)
+                .attr("height", width);
+            self.width = self.height = width;
+        };
+
+        // FIXME: This isn't very nice, we don't redraw the board just clip it.
+        $(window).on("resize", self.resize);
+
+        self.element = d3.select(element);
+        var board = self.element.append("svg:svg")
+                .attr("id", "board")
+                //.attr("viewbox", "0 0 18 18")
+                .attr("preserveAspectRatio", "xMidYMid meet");
+        self.resize();
+        var margin = 0,
+            spacing = self.width / size;
+        var coord = function (pos) {
+            return 0.5 + Math.round(pos * spacing + spacing/2);
+        };
+
+        self.board = board;
+        draw_board(board, coord);
+
+        var stones = board.append("g");  // SVG group to contain all stones
+
+        var defs = board.append("svg:defs");
+
+        create_shadows(defs, spacing);
+        create_gradients(defs);
+
+        // The shadow must be added to the group of stones as a whole, because it
+        // must be drawn beneath all of them
+        stones.style("filter", "url(#drop-shadow)");
 
         var moveline = d3.svg.line()
-                .defined(function (m) {return m.position})
+                .defined(function (m) {return m.position;})
                 .x(function(m) { return coord(m.position[0]); })
                 .y(function(m) { return coord(m.position[1]); })
                 .interpolate("cardinal");
         var path = board.append("path")
                 .style("stroke", "rgba(0,100,255,0.7)")
                 .style("stroke-width", 2)
-                .style("fill", "none");
+                .style("fill", "none")
+                .style("pointer-events", "none");
 
-        var marker = board.append("circle")
+        var marker = board.append("circle") // last stone marker
+                .attr("id", "marker")
                 .attr("r", spacing / 4)
                 .attr("fill", "rgba(0,0,0,0)")
                 .style("stroke", "red")
-                .style("stroke-width", spacing / 15);
-        //.style("display", "none");
+                .style("stroke-width", spacing / 15)
+                .style("pointer-events", "none");
 
-        // whenever things change, execute this
+        var stone_mouseover = function (m, i) {
+            var s = d3.select(this);
+            board.append("text").text(m.n + 1)
+                .attr("id", "number" + m.n)
+                .attr("dominant-baseline", "central")
+                .attr("text-anchor", "middle")
+                .attr("x", coord(m.position[0]))
+                .attr("y", coord(m.position[1]))
+                .style("fill", m.n % 2 === 0 ? "white" : "black")
+                .style("pointer-events", "none");
+            //s.attr("r", s.attr("r") * 1.1);
+        };
+        var stone_mouseout = function (m, i) {
+            var s = d3.select(this);
+            board.select("#number" + m.n).remove();
+            //s.attr("depth", 10).attr("r", s.attr("r") / 1.1);
+        };
+
+        // Automatically handle model changes
         ko.computed(function() {
-            //board.selectAll('*').remove();
 
             var current_move = model.current_move();
             var captures = model.captures();
@@ -187,37 +207,21 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
                                                   captures[0].indexOf(m.n) === -1 &&
                                                   captures[1].indexOf(m.n) === -1);});
 
-            var stones = stonegroup.selectAll("circle").data(moves,
-                                                             // need to key the moves on
-                                                             // number, to be able to remove
-                                                             // captures.
-                                                             function(m) { return m.n; });
-
             var last_move = moves.slice(-1)[0];
-            stones.style("stroke", null)
-                .on("mouseover", function () {
-                    var stone = d3.select(this);
-                    console.log(stone.text());
-                    stone.attr("r", stone.attr("r") * 1.1);
-                })
-                .on("mouseout", function () {
-                    var stone = d3.select(this);
-                    console.log(stone.text());
-                    stone.attr("depth", 10).attr("r", stone.attr("r") / 1.1);
-                });
-
-
-            // Update stones
-            stones.enter().append("circle")
+            var stone = stones.selectAll("circle").data(
+                moves, function(m) { return m.n; }); // need to key the moves on number,
+                                                     // to be able to remove captures
+            stone  // stone appearance
                 .attr("r", 0.95 * spacing/2)
                 .style("fill", function(m) {
                     return "url(#" + ["black", "white"][m.player] + "gradient)";})
                 .attr("cx", function(m) {return coord(m.position[0]);})
                 .attr("cy", function(m) {return coord(m.position[1]);})
-                .text(function (m, i) {return m.n;});
+                .on("mouseover", stone_mouseover)
+                .on("mouseout", stone_mouseout);
 
-            // Remove stones that aren't present anymore
-            stones.exit().remove();
+            stone.enter().append("circle");  // Update stones
+            stone.exit().remove();  // Remove stones that aren't present anymore
 
             // last move marker (a bit buggy, maybe do it in a more "d3" way?)
             if (moves.length > 0 && last_move && last_move.position) {
