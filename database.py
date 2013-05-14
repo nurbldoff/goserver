@@ -1,4 +1,5 @@
 from itertools import islice
+from time import time
 
 import pymongo
 from game import Game
@@ -39,24 +40,20 @@ class Database(object):
     def update_game(self, game, fields=None):
         gdict = game.build_dbdict()
         #update = dict([(k, gdict.get(k)) for k in fields])
-        self.games.save(gdict)  # do a partial update instead!
+        self.games.save(gdict)
 
-    def get_game_moves(self, gameid, cursor):
-        """ Return all messages starting with 'start_id', optionally
-        for a given room. """
-        #game = self.get_game(gameid)
-        # search = {}
-        # search["_id"] = {"$gt": cursor}
-
-        # This is pretty inefficient too..
-        result = list(self.games.find({"_id": gameid}, {"moves": 1}))
+    def get_game_moves(self, gameid, cursor=0, max_n=300):
+        """Fetch moves from the given game, starting at cursor. Return no
+        more than max_n moves (the default should cover a whole game.)"""
+        cur = int(cursor)  # this is weak
+        result = list(self.games.find({"_id": gameid},
+                                      {"moves": {"$slice": [cur, max_n]}}))
         moves = result[0]["moves"]
-        return moves[int(cursor):], len(moves)
-        #return game.find(search).sort("_id")
+        return moves, cur + len(moves)
 
     def put_game_moves(self, gameid, moves):
         for move in moves:
-            move["_id"] = self.get_new_game_move_id(gameid)
+            move["_id"] = move["n"]
         self.games.update({"_id": int(gameid)}, {"$pushAll": {"moves": moves}})
 
     def get_new_game_move_id(self, gameid):
