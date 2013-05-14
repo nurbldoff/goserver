@@ -5,14 +5,15 @@ define( ['knockout-2.2.1'], function (ko) {
         self.roomid = roomid;
 
         self.messages = ko.observableArray();
-        self.new_message = ko.observable("");
 
         self.cursor = 0;
         self.default_timeout = 1000;
 
-        self.send_message = function (msg) {
+        self.send_message = function (form) {
+            var msg = $("#new-message").val();
+            $("#new-message").val("");
             $.ajax({url: "/room/" + roomid + "/message", type: "POST",
-                    data: {body: self.new_message()},
+                    data: {body: msg},
                     success: function (data) {}});
         };
 
@@ -30,10 +31,14 @@ define( ['knockout-2.2.1'], function (ko) {
             console.log(data.updates);
             var updates = data.updates;
             for (var i in updates) {
-                self.messages.push(updates[i]);
+                console.log("last message", self.messages());
+                var latest_msg = self.messages().slice(-1)[0];
+                // Check that the new message id is larger than the latest we showed.
+                if (self.messages().length == 0 ||
+                    (latest_msg && (updates[i]._id > self.messages().slice(-1)[0]._id))) {
+                    self.messages.push(updates[i]);
+                }
             }
-            console.log(self.messages());
-            self.new_message("");
             var $messages = $("#messages");
             $messages.animate({scrollTop: $messages[0].scrollHeight});
             self.cursor = data.cursor;

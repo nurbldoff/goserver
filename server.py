@@ -358,7 +358,7 @@ class MessageNewHandler(BaseHandler, ChatMixin):
         print self.request.arguments
         #game = get_game(gameid)
         update = {
-            "id": db.get_new_message_id(),
+            "_id": db.get_new_message_id(),
             "time": time.time(),
             "user": self.current_user,
             "body": self.get_argument("body"),
@@ -367,7 +367,7 @@ class MessageNewHandler(BaseHandler, ChatMixin):
             self.redirect(self.get_argument("next"))
         else:
             self.write(update)
-        self.new_updates(gameid, [update], update["id"])
+        self.new_updates(gameid, [update], update["_id"])
 
 
 class MessageUpdatesHandler(BaseHandler, ChatMixin):
