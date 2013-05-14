@@ -137,7 +137,6 @@ class ChatMixin(object):
         if cursor:
             recent = db.get_chat_messages(room, cursor)
             if recent:
-                print "recent messages", recent
                 callback(dict(updates=recent, cursor=recent[-1]["_id"]))
                 return
         cls.waiters[room].add(callback)
@@ -171,7 +170,6 @@ class GameMixin(object):
         print "Game cursor:", cursor
         if cursor is not None:
             recent, cursor = db.get_game_moves(gameid, cursor)
-            print "recent:", recent, cursor
             if recent:
                 callback([dict(move=move) for move in recent], cursor)
                 return
@@ -287,7 +285,7 @@ class GameMoveHandler(BaseHandler, GameMixin):
                                   position=position,
                                   player=self.current_user,
                                   validate=True, resign=resign)
-            db.update_game(game)
+            db.put_game_moves(gameid, [move])
             update = dict(move=move)
             color = ["Black", "White"][move["player"]]
             if position is None:
@@ -307,6 +305,8 @@ class GameMoveHandler(BaseHandler, GameMixin):
             if game.finished:
                 update["status"] = dict(finished=True)
                 self.send_message(gameid, "The game has ended!")
+                self.send_message(gameid,
+                                  "(Score counting not yet implemented.)")
             self.new_updates(gameid, [update], cursor=move["n"] + 1)
         except IllegalMove, e:
             print "Illegal Move:", e.message
