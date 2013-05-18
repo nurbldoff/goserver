@@ -1,9 +1,72 @@
 #!/usr/bin/env python
 
+"""
+A server to play Go over the web.
+
+Has a simple "REST" API for clients to communicate:
+
+* POST "/login" to log in, with JSON data:
+
+    {"username": "some_user", "password": "some_pass"}
+
+  Sets a cookie to keep the player logged in. Users are created on
+  first login. Currently does no check on the password; it can be
+  anything.
+
+* GET "/logout" to log out.
+
+
+* POST "/game/new" creates a new game, and redirects the client to it.
+
+* POST "/game/123" enters the game with number 123, if it exists.
+  If there is only one player in the game, join it as white.
+  If the game already has two players, enter as a passive spectator.
+
+* POST "/game/123/updates" is used to watch a game for moves, by
+  polling. Send "cursor=N" as argument, where N is the number of the
+  move you're waiting for (e.g. 0 at the start). If that move has not
+  yet happened, wait. If one or more moves have occurred since N,
+  you'll immediately get them as JSON, like this:
+
+    {"cursor": 8, "updates": [{"move": {"position": "1,2", "n"=6}},
+                              {"move": {...}}, ...]}
+
+  ...where "cursor" is the new cursor to wait for, and so on.
+
+  "n" is the number of the move, starting with 0.
+  A "resign" is indicated by the presence of "resign=true" in the move object.
+  A "pass" is indicated by a position of "null", or no position.
+
+* POST "/game/123/move" is used to make moves in a game you're playing.
+  As data, send JSON on the format:
+
+    {"position": "4,5", "resign": false}
+
+  Both fields are optional.
+
+
+* POST "/room/123/message" to send a chat message to the room associated with
+  game 123, on the form:
+
+    {"body": "This is a message."}
+
+* POST "/room/123/updates" to watch the room for chat messages. Works like
+  watching a game, except updates are on the form:
+
+    {"user": "some_user", "body": "Blabla...", "time": 123456.7890}
+
+  "time" is given as epoch.
+
+
+Note: Polling is sort of primitive, but it's simple and universally
+supported. Take care not to hammer the service with updates requests;
+keep timeouts fairly long and, preferably, increase them if there are
+no updates.
+"""
+
 import logging
 import time
 import os.path
-import uuid
 from collections import defaultdict
 
 import tornado.auth
@@ -12,7 +75,6 @@ import tornado.ioloop
 import tornado.options
 import tornado.web
 from tornado.options import define, options
-from tornado.escape import json_encode
 
 from game import Game, IllegalMove
 from database import Database
@@ -33,7 +95,6 @@ class Application(tornado.web.Application):
             (r"/game/([0-9]+)", GameHandler, args),
             #(r"/auth/login", AuthLoginHandler),
             #(r"/auth/logout", AuthLogoutHandler),
-            #(r"/game/([0-9]+)", GameHandler, args),
             (r"/room/([0-9]+)/message", MessageNewHandler, args),
             (r"/room/([0-9]+)/updates", MessageUpdatesHandler, args),
             (r"/game/([0-9]+)/updates", GameUpdatesHandler, args),
@@ -72,11 +133,11 @@ class ChatMixin(object):
     def wait_for_updates(self, room, callback, cursor=None):
         """Adds a request to the waiting list for the given room"""
         cls = ChatMixin
-        print "Message cursor:", cursor
+        print "Message cursor:", cursor, "room:", room
         if cursor:
             recent = db.get_chat_messages(room, cursor)
             if recent:
-                callback(recent)
+                callback(dict(updates=recent, cursor=recent[-1]["_id"]))
                 return
         cls.waiters[room].add(callback)
 
@@ -84,14 +145,14 @@ class ChatMixin(object):
         cls = ChatMixin
         cls.waiters[room].remove(callback)
 
-    def new_updates(self, room, updates):
+    def new_updates(self, room, updates, cursor=None):
         """Send out updates to clients waiting on the given room"""
         cls = ChatMixin
         logging.info("Sending update on room '%s' to %d listeners" %
                      (room, len(cls.waiters[room])))
         for callback in cls.waiters[room]:
             try:
-                callback(updates)
+                callback(dict(updates=updates, cursor=cursor))
             except:
                 logging.error("Error in waiter callback", exc_info=True)
         cls.waiters[room] = set()
@@ -109,9 +170,8 @@ class GameMixin(object):
         print "Game cursor:", cursor
         if cursor is not None:
             recent, cursor = db.get_game_moves(gameid, cursor)
-            print "recent:", recent, cursor
             if recent:
-                callback([dict(moves=[move]) for move in recent], cursor)
+                callback([dict(move=move) for move in recent], cursor)
                 return
         cls.waiters[gameid].add(callback)
 
@@ -144,16 +204,18 @@ class GameMixin(object):
 
     def send_message(self, gameid, body, user="[SERVER]"):
         ChatMixin().new_updates(gameid, [dict(user=user, time=time.time(),
-                                             body=body)])
+                                              body=body)])
 
 
 class GameListHandler(BaseHandler, GameMixin):
     @tornado.web.authenticated
     def get(self):
         user = self.get_argument("user", None)
+        print "user:", user
         games = db.get_games(user=user)
         #games.sort(key=lambda x: x.get("time", 0), reverse=True)
-        self.render("game_list.html", games=games, user=user)
+        self.render("game_list.html", games=games,
+                    username=self.current_user)
 
 
 class GameHandler(BaseHandler, GameMixin):
@@ -178,7 +240,8 @@ class GameHandler(BaseHandler, GameMixin):
             gamedict = game.get_game_state()
             messages = db.get_chat_messages(gameid, 0)
             gamedict["messages"] = messages
-            self.render("index.html", game_data=json_encode(gamedict))
+            self.render("index.html", gameid=gameid,
+                        username=self.current_user)
 
 
 class GameNewHandler(BaseHandler, GameMixin):
@@ -212,15 +275,18 @@ class GameMoveHandler(BaseHandler, GameMixin):
             position = None
         else:
             position = [int(p) for p in position.split(",")]
-        resign = self.get_argument("resign", False) == "True"
+        resign = self.get_argument("resign", False)
+        # TODO: This stuff should be unnecessary; figure out why it isn't
+        if isinstance(resign, str):
+            resign = resign.tolower() == "true"
 
         try:
             move = game.make_move(time=time.time(),
                                   position=position,
                                   player=self.current_user,
                                   validate=True, resign=resign)
-            db.update_game(game)
-            update = dict(moves=[move])
+            db.put_game_moves(gameid, [move])
+            update = dict(move=move)
             color = ["Black", "White"][move["player"]]
             if position is None:
                 if resign:
@@ -239,7 +305,9 @@ class GameMoveHandler(BaseHandler, GameMixin):
             if game.finished:
                 update["status"] = dict(finished=True)
                 self.send_message(gameid, "The game has ended!")
-            self.new_updates(gameid, [update], cursor=move["n"])
+                self.send_message(gameid,
+                                  "(Score counting not yet implemented.)")
+            self.new_updates(gameid, [update], cursor=move["n"] + 1)
         except IllegalMove, e:
             print "Illegal Move:", e.message
             update = {"error": "Illegal Move:" + e.message}
@@ -257,7 +325,7 @@ class GameStateHandler(BaseHandler):
         game = db.get_game(game_id)
         if game:
             s = game.get_game_state()
-            self.finish(json_encode(s))
+            self.finish(s)
         else:
             return None
 
@@ -269,6 +337,7 @@ class GameUpdatesHandler(BaseHandler, GameMixin):
         game_id = int(game_id)
         self.game_id = game_id
         cursor = self.get_argument("cursor")
+        cursor = None if cursor == "null" else cursor
         self.wait_for_updates(game_id, self.on_new_updates, cursor)
 
     def on_new_updates(self, updates, cursor):
@@ -289,7 +358,7 @@ class MessageNewHandler(BaseHandler, ChatMixin):
         print self.request.arguments
         #game = get_game(gameid)
         update = {
-            "id": db.get_new_message_id(),
+            "_id": db.get_new_message_id(),
             "time": time.time(),
             "user": self.current_user,
             "body": self.get_argument("body"),
@@ -298,7 +367,7 @@ class MessageNewHandler(BaseHandler, ChatMixin):
             self.redirect(self.get_argument("next"))
         else:
             self.write(update)
-        self.new_updates(gameid, [update])
+        self.new_updates(gameid, [update], update["_id"])
 
 
 class MessageUpdatesHandler(BaseHandler, ChatMixin):
@@ -307,7 +376,7 @@ class MessageUpdatesHandler(BaseHandler, ChatMixin):
     def post(self, room):
         room = int(room)
         self.room = room
-        cursor = self.get_argument("cursor", None)
+        cursor = self.get_argument("cursor", 0)
         self.wait_for_updates(room, self.on_new_updates, cursor)
 
     def on_new_updates(self, updates):
@@ -315,7 +384,7 @@ class MessageUpdatesHandler(BaseHandler, ChatMixin):
         if self.request.connection.stream.closed():
             return
 
-        self.finish(dict(updates=updates))
+        self.finish(updates)
 
     def on_connection_close(self):
         self.cancel_wait(self.room, self.on_new_updates)

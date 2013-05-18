@@ -1,0 +1,41 @@
+/* layout css stylesheet */
+
+body,html{
+    width:100%;
+    height:100%;
+    padding:0;
+    margin:0;
+}
+
+#right-part {
+   float: right;
+   position: absolute;
+   top: 0;
+   bottom: 0px;
+   right: 0;
+   left: 50%;
+   padding: 10px;
+}
+
+#left-part{
+   width:50%;
+   float: left;
+
+   position: absolute;
+   top: 0;
+   bottom: 0;
+   overflow-y: hidden;
+}
+
+#dragbar{
+   height: 100%;
+   float: right;
+   width: 1px;
+   top: 0;
+   background-color: #888;
+}
+
+button {
+    background-color: #aaa;
+    border-radius: 7px;
+}

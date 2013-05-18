@@ -1,95 +1,95 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html ng-app="GoClient">
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <title>Go server</title>
-    <link rel="stylesheet" href="{{ static_url("main.css") }}" type="text/css"/>
+    <title> Go Server </title>
+
+    <link rel="stylesheet" href="/static/css/toast/toast.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/game.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
+
   </head>
+
   <body>
-    <div id="nav">
-      <b><div id="username">{{ current_user }}</b> -
-        <a href="/?user={{ current_user }}"> My games </a> |
-        <a href="/"> All games </a> |
-        <a href="/logout">{{ _("Sign out") }}</a>
+
+    <input id="game-id" type="hidden" name="game-id" value="{{ gameid }}"/>
+    <input id="username" type="hidden" name="username" value="{{ username }}"/>
+    <div id="left-part">
+      <div id="dragbar"></div>
+
+      <div id="gobanwrap">
+        <div id="goban"></div>
       </div>
-    </div>
-    <div id="body" style="width:100%">
-      <table class="main">
-        <tr>
-          <td class="left" style="width:50%">
-            <div id="goban"></div>
-          </td>
 
-          <td class="right">
-            <div id="gameinfo">
-            </div>
-            <div id="chat">
-              <div id="inbox">
-              </div>
-              <div id="input">
-                <form action="" method="post" id="messageform">
-                  <table style="width: 100%">
-                    <tr>
-                      <td>
-                        <input name="body" id="message" style="width: 100%"/>
-                      </td>
-                      <input type="hidden" name="next" value="{{ request.path }}"/>
-                      {% module xsrf_form_html() %}
-                    </tr>
-                  </table>
-                </form>
-              </div>
-            </div>
-
-          </td>
-        </tr>
-      </table>
     </div>
 
-    <script type="text/template" id="gameinfo_template">
-      <table width="100%" class="gameinfo">
-        <tr>
-          <td>
-            <div id="blackStatus" class="activePlayer">
-              <div class="playerName"><%= black %></div>
-              <div>Captures: <%= black_captures %></div>
-            </div>
-          </td>
-          <td>
-            <div id="whiteStatus">
-              <div class="playerName"><%= white %></div>
-              <div>Captures: <%= white_captures %></div>
-            </div>
-          </td>
-        </tr>
-        <tr id="gameCommands">
-          <td>
-            <button id="passButton" type="button">Pass</button>
-            <button id="resignButton" type="button">Resign</button>
-            </FORM>
-          </td>
-        </tr>
-      </table>
-    </script>
+    <div id="right-part">
 
-    <script type="text/template" id="chatmessage_template">
-      <div class="chatMessage">
-        <span class="messageUser"><%= user %></span>
-        <span class="messageBody"><%= body %></span>
-        <span class="messageTime"><%= time %></span>
+      <div id="header">
+        {{ username }} |
+        <a href="/?user={{ username }}">My games</a> |
+        <a href="/">All games</a> |
+        <a href="/logout">Logout<a>
       </div>
-    </script>
 
-    <script src="{{ static_url("jquery-2.0-min.js") }}" type="text/javascript"></script>
-    <script src="{{ static_url("underscore-min.js") }}" type="text/javascript"></script>
-    <script src="{{ static_url("backbone-min.js") }}" type="text/javascript"></script>
-    <script type="text/javascript" src="{{ static_url("raphael-min.js")}}"></script>
-    <script src="{{ static_url("game.js") }}" type="text/javascript"></script>
-    <script src="{{ static_url("goban.js") }}" type="text/javascript"></script>
-    <script type="text/javascript">
-      // Preloading the go game object
-      Go.game = new Go.Game({% raw game_data %});
-      Go.game.user = "{{ current_user }}";
-    </script>
+      <div id="game-info">
+
+        <table class="status">
+          <tr>
+            <td>
+              <div class="black player" data-bind="css: {active: turn() == 0}">
+                <span data-bind="text: black,
+                                 css: {playing: (black() == username) && !finished()}"></span>
+                (<span data-bind="text: captures()[0].length"></span>)
+              </div>
+            </td>
+          <td>
+            <div class="white player" data-bind="css: {active: turn() == 1}">
+                <span data-bind="text: white,
+                                 css: {playing: (white() == username) && !finished()}"></span>
+                (<span data-bind="text: captures()[1].length"></span>)
+            </div>
+          </td>
+          </tr>
+        </table>
+
+        <div>
+          <button data-bind="click: prev_move">←</button>
+          <button data-bind="click: next_move">→</button>
+          <input id="move_slider" type="range" min="0", max="10"
+                 data-bind="value: current_move"/>
+          <span data-bind="text: current_move"></span> /
+          <span data-bind="text: moves().length"></span>
+          <input id="path_checkbox" type="checkbox" data-bind="checked: show_path"\>Show path
+        </div>
+        <div id="game-actions">
+          <span id="error" data-bind="text: error"></span>
+          <button data-bind="click: pass, enable: playing"> Pass </button>
+          <button data-bind="click: resign, enable: playing"> Resign </button>
+        </div>
+
+      </div>
+
+      <div id="chat">
+
+        <div id="messages" data-bind="foreach: messages">
+            <div class="message">
+              <span class="username" data-bind="text: user"></span>
+              <span class="body" data-bind="text: body"></span>
+              <!-- <span class="timestamp" data-bind="text: time"></span> -->
+            </div>
+        </div>
+
+        <form data-bind="submit: send_message">
+          <input id="new-message" type="text">
+        </form>
+
+      </div>
+
+    </div>
+
+    <script data-main="/static/js/main" src="/static/js/require.js"></script>
+
   </body>
+
 </html>

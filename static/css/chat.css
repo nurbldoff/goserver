@@ -1,0 +1,40 @@
+#chat {
+    height: 75%;
+}
+
+#messages {
+    background-color: #ddd;
+    height: 90%;
+    overflow-y: scroll;
+}
+
+#messages .wrap {
+    padding: 0px;
+}
+
+#messages .message {
+    display: table-row;
+}
+
+.message span {
+    border-bottom: 1px solid #ccc;
+}
+
+.message .username {
+    background-color: #bbb;
+    display: table-cell;
+    font-weight: bold;
+    text-align: right;
+    padding: 0 5px;
+}
+
+.message .body {
+    display: table-cell;
+    width: 100%;
+    padding: 0 5px;
+}
+
+#new-message {
+    border: 3px;
+    width: 100%;
+}
