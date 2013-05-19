@@ -34,48 +34,52 @@
 
       <div id="game-info">
 
-        <table class="status">
-          <tr>
-            <td>
+        <div class="wrap">
+          <div class="table">
+            <div class="status">
               <div class="black player" data-bind="css: {active: turn() == 0}">
                 <span data-bind="text: black,
                                  css: {playing: (black() == username) && !finished()}"></span>
                 (<span data-bind="text: captures()[0].length"></span>)
               </div>
-            </td>
-          <td>
-            <div class="white player" data-bind="css: {active: turn() == 1}">
+              <div class="white player" data-bind="css: {active: turn() == 1}">
                 <span data-bind="text: white,
                                  css: {playing: (white() == username) && !finished()}"></span>
                 (<span data-bind="text: captures()[1].length"></span>)
+              </div>
             </div>
-          </td>
-          </tr>
-        </table>
-
-        <div>
-          <button data-bind="click: prev_move">←</button>
-          <button data-bind="click: next_move">→</button>
-          <input id="move_slider" type="range" min="0", max="10"
-                 data-bind="value: current_move"/>
-          <span data-bind="text: current_move"></span> /
-          <span data-bind="text: moves().length"></span>
-          <input id="path_checkbox" type="checkbox" data-bind="checked: show_path"\>Show path
+          </div>
         </div>
-        <div id="game-actions">
-          <span id="error" data-bind="text: error"></span>
-          <button data-bind="click: pass, enable: playing"> Pass </button>
-          <button data-bind="click: resign, enable: playing"> Resign </button>
-        </div>
+        <div class="wrap">
+          <div class="table">
+            <div id="game-actions">
+              <button data-bind="click: prev_move">←</button>
+              <button data-bind="click: next_move">→</button>
+              <span id="move-slider">
+                <input id="move_slider" type="range" min="0", max="10"
+                       data-bind="value: current_move"/>
+              </span>
+              <span data-bind="text: current_move() + '/' + moves().length"></span>
 
+              <span id="path">
+                <input id="path_checkbox" type="checkbox" data-bind="checked: show_path"\>Show path
+              </span>
+              <button data-bind="click: pass, enable: playing"> Pass </button>
+              <button data-bind="click: resign, enable: playing"> Resign </button>
+            </div>
+            <!-- <div id="game-actions"> -->
+            <!--   <span id="error" data-bind="text: error"></span> -->
+            <!-- </div> -->
+          </div>
+        </div>
       </div>
 
       <div id="chat">
 
         <div id="messages" data-bind="foreach: messages">
-            <div class="message">
+            <div class="message" data-bind="css: {gameinfo: user == ''}">
               <span class="username" data-bind="text: user"></span>
-              <span class="body" data-bind="text: body"></span>
+              <span class="body" data-bind="html: body"></span>
               <!-- <span class="timestamp" data-bind="text: time"></span> -->
             </div>
         </div>

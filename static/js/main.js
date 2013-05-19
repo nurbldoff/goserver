@@ -4,20 +4,15 @@ requirejs.config({
         app: '../app'
     },
     shim: {
-        d3: {
-            exports: 'd3'
-        }
+        d3: {exports: 'd3'}
     }
 });
 
 
 // Start the main app logic.
 require(
-    ['jquery', 'knockout-2.2.1', 'd3', 'app/game', 'app/chat'],
-    function ($, ko, d3, GameViewModel, ChatViewModel) {
-        //jQuery, canvas and the app/sub module are all
-        //loaded and can be used here now.
-
+    ['jquery', 'knockout', 'd3', 'knockout-postbox', 'app/game', 'app/chat'],
+    function ($, ko, d3, postbox, GameViewModel, ChatViewModel) {
         var gameid = $("#game-id").val(),
             username = $("#username").val(),
             mv = new GameViewModel(gameid, username),

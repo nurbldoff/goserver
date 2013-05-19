@@ -4,7 +4,7 @@ body {
 
 input[type='range'] {
     height:7px;
-    width: 300px;
+    width: 100%;
 }
 
 input[type='range']::-webkit-slider-thumb {
@@ -29,25 +29,32 @@ input[type='range']::-webkit-slider-thumb {
 
 #game-info {
     background-color: #999;
-    padding: 5px;
+    width: 100%;
     border-radius: 5px 5px 0px 0px;
+    display: table;
 }
 
-table.status {
+div.table {
+    display: table;
+    width: 100%;
+}
+
+div.wrap {
+    padding: 5px;
+}
+
+.status {
     width: 100%;
     border-collapse: collapse;
-}
-
-table.status td {
-    width: 50%;
-    padding: 7px;
-    border-radius: 5px;
+    display: table-row;
+    padding: 5px;
 }
 
 .player {
-    width: 100%;
+    width: 50%;
     text-align: center;
     border-radius: 5px;
+    display: table-cell;
 }
 
 .black {
@@ -70,7 +77,16 @@ table.status td {
 
 #game-actions {
     width: 100%;
-    text-align: right;
+    display: table-row;
+}
+
+#game-actions span,button,input {
+
+    display: table-cell;
+}
+
+#game-slider {
+    width: 100%;
 }
 
 #game-actions .error {

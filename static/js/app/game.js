@@ -1,4 +1,5 @@
-define(['knockout-2.2.1', 'd3', 'app/board'], function (ko, d3, GoBoard) {
+define(['knockout', 'd3',
+        'app/board'], function (ko, d3, GoBoard) {
 
     return function (gameid, username) {
         var self = this;
@@ -42,13 +43,17 @@ define(['knockout-2.2.1', 'd3', 'app/board'], function (ko, d3, GoBoard) {
         self.size = 19;
         var default_timeout = 1000;
 
-        // Init the board
-        self.board = new GoBoard(self, "#goban", self.size, 700);
-
-        self.board.board.on("click", function (d, i) {
-            var coords = d3.mouse(self.board.board[0][0]);
-            var pos = [Math.floor(coords[0] / (self.board.width / self.size)),
-                       Math.floor(coords[1] / (self.board.height / self.size))];
+        // Init the board, connect to updates
+        self.board = new GoBoard("#goban", self.size, 700);
+        ko.computed(function () {
+            self.board.update_stones(self.moves(), self.current_move(), self.captures());
+        });
+        ko.computed(function () {
+            self.board.update_path(self.show_path(), self.moves(), self.current_move());
+        });
+        self.board.goban.on("click", function (d, i) {
+            var coords = d3.mouse(this),
+                pos = self.board.get_position(coords);
             self.make_move(pos);
         });
 
@@ -113,6 +118,7 @@ define(['knockout-2.2.1', 'd3', 'app/board'], function (ko, d3, GoBoard) {
                     else
                         self.black(user);
                 }
+                ko.postbox.publish("move", move);
             }
             if (self.current_move() == self.cursor()) {
                 self.current_move(data.cursor);

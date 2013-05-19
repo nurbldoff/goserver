@@ -1,8 +1,8 @@
 // stuff for visualizing the board
 
-define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
+define( ['knockout', 'd3'], function (ko, d3) {
 
-    var draw_board = function (board, coord) {
+    var draw_goban = function (board, coord) {
         board.append("svg:image")
             .attr("xlink:href", "/static/images/goban_whole4_small.jpg")
             .attr("x", "0")
@@ -118,24 +118,23 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
             .attr("stop-color", "#000");
     };
 
-
-    return function (model, element, size) {
+    return function (element, size) {
 
         var self = this;
 
         self.resize = function () {
             var width = $(element).width();
-            board.attr("width", width)
+            goban.attr("width", width)
                 .attr("height", width);
             self.width = self.height = width;
         };
 
-        // FIXME: This isn't very nice, we don't redraw the board just clip it.
+        // FIXME: This isn't very nice, we don't redraw the goban just clip it.
         $(window).on("resize", self.resize);
 
         self.element = d3.select(element);
-        var board = self.element.append("svg:svg")
-                .attr("id", "board")
+        var goban = self.element.append("svg:svg")
+                .attr("id", "goban")
                 //.attr("viewbox", "0 0 18 18")
                 .attr("preserveAspectRatio", "xMidYMid meet");
         self.resize();
@@ -145,12 +144,12 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
             return 0.5 + Math.round(pos * spacing + spacing/2);
         };
 
-        self.board = board;
-        draw_board(board, coord);
+        self.goban = goban;
+        draw_goban(goban, coord);
 
-        var stones = board.append("g");  // SVG group to contain all stones
+        var stones = goban.append("g");  // SVG group to contain all stones
 
-        var defs = board.append("svg:defs");
+        var defs = goban.append("svg:defs");
 
         create_shadows(defs, spacing);
         create_gradients(defs);
@@ -164,13 +163,13 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
                 .x(function(m) { return coord(m.position[0]); })
                 .y(function(m) { return coord(m.position[1]); })
                 .interpolate("cardinal");
-        var path = board.append("path")
+        var path = goban.append("path")
                 .style("stroke", "rgba(0,100,255,0.7)")
                 .style("stroke-width", 2)
                 .style("fill", "none")
                 .style("pointer-events", "none");
 
-        var marker = board.append("circle") // last stone marker
+        var marker = goban.append("circle") // last stone marker
                 .attr("id", "marker")
                 .attr("r", spacing / 4)
                 .attr("fill", "rgba(0,0,0,0)")
@@ -180,7 +179,7 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
 
         var stone_mouseover = function (m, i) {
             var s = d3.select(this);
-            board.append("text").text(m.n + 1)
+            goban.append("text").text(m.n + 1)
                 .attr("id", "number" + m.n)
                 .attr("dominant-baseline", "central")
                 .attr("text-anchor", "middle")
@@ -192,16 +191,19 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
         };
         var stone_mouseout = function (m, i) {
             var s = d3.select(this);
-            board.select("#number" + m.n).remove();
+            goban.select("#number" + m.n).remove();
             //s.attr("depth", 10).attr("r", s.attr("r") / 1.1);
         };
 
-        // Automatically handle model changes
-        ko.computed(function() {
+        self.get_position = function (coords) {
+            return [Math.floor(coords[0] / (self.width / size)),
+                    Math.floor(coords[1] / (self.height / size))];
+        };
 
-            var current_move = model.current_move();
-            var captures = model.captures();
-            var moves = model.moves().slice(0, current_move)
+        // Update stones
+        self.update_stones = function(all_moves, current_move, captures) {
+
+            var moves = all_moves.slice(0, current_move)
                     // Filter out moves without position (pass) and captured stones
                     .filter(function (m) {return (m.position &&
                                                   captures[0].indexOf(m.n) === -1 &&
@@ -229,16 +231,15 @@ define( ['knockout-2.2.1', 'd3'], function (ko, d3) {
                     .attr("cx", coord(last_move.position[0]))
                     .attr("cy", coord(last_move.position[1]));
             }
-        });
+        };
 
-        ko.computed(function () {
-            if (model.show_path()) {
-                console.log("path enabled");
-                path.attr("d", moveline(model.moves.slice(0, model.current_move())));
+        self.update_path = function (show, all_moves, current_move) {
+            if (show) {
+                path.attr("d", moveline(all_moves.slice(0, current_move)));
             } else {
                 path.attr("d", moveline([]));
             }
-        });
+        };
 
     };
 });

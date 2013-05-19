@@ -34,6 +34,12 @@
     padding: 0 5px;
 }
 
+.gameinfo {
+    font-size: smaller;
+    color: #555;
+    background: #bbb;
+}
+
 #new-message {
     border: 3px;
     width: 100%;
